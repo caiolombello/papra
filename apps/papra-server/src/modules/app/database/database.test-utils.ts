@@ -7,6 +7,7 @@ import { customPropertyDefinitionsTable, documentCustomPropertyValuesTable } fro
 import { customPropertySelectOptionsTable } from '../../custom-properties/options/custom-properties-options.table';
 import { documentsTable } from '../../documents/documents.table';
 import { intakeEmailsTable } from '../../intake-emails/intake-emails.tables';
+import { meetingChunksTable, meetingsTable } from '../../meetings/meetings.tables';
 import { organizationInvitationsTable, organizationMembersTable, organizationsTable } from '../../organizations/organizations.table';
 import { userRolesTable } from '../../roles/roles.table';
 import { organizationSubscriptionsTable } from '../../subscriptions/subscriptions.tables';
@@ -42,6 +43,8 @@ const seedTables = {
   tags: tagsTable,
   documentsTags: documentsTagsTable,
   intakeEmails: intakeEmailsTable,
+  meetings: meetingsTable,
+  meetingChunks: meetingChunksTable,
   organizationSubscriptions: organizationSubscriptionsTable,
   taggingRules: taggingRulesTable,
   taggingRuleConditions: taggingRuleConditionsTable,

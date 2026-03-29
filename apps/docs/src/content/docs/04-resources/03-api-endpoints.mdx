@@ -64,6 +64,11 @@ When creating an API key, you can select from the following permissions:
 - `tags:update` - Update tag details
 - `tags:delete` - Delete tags
 
+Custom properties and tagging rules currently reuse the existing organization and document API key permissions:
+
+- `organizations:read` - Read organization-scoped configuration such as property definitions and tagging rules
+- `organizations:update` - Create, update, delete, and apply organization-scoped configuration such as property definitions and tagging rules
+
 ## Endpoints
 
 ### Check current API key
@@ -229,6 +234,26 @@ Get the statistics (number of documents and total size) of the documents in the 
     - `documentsCount`: The total number of documents.
     - `documentsSize`: The total size of the documents.
 
+### Unified search
+
+**GET** `/api/organizations/:organizationId/search`
+
+Search the organization's knowledge base across documents, meetings, or both with a single request.
+
+- Required API key permissions: `documents:read`
+- Query parameters
+  - `searchQuery`: The search query string.
+  - `scope`: (optional, default: `all`) One of `all`, `documents`, or `meetings`.
+  - `pageIndex`: (optional, default: 0) The page index to start from.
+  - `pageSize`: (optional, default: 20, max: 100) The number of results to return per scope.
+- Response (JSON)
+  - `scope`: The effective scope used for the search.
+  - `documents`: The list of matching documents.
+  - `documentsCount`: The total number of matching documents.
+  - `meetings`: The list of matching meetings.
+  - `meetingsCount`: The total number of matching meetings.
+  - `totalCount`: The sum of `documentsCount` and `meetingsCount`.
+
 ### Update a document
 
 **PATCH** `/api/organizations/:organizationId/documents/:documentId`
@@ -322,12 +347,278 @@ Remove a tag from a document.
 - Required API key permissions: `tags:read` and `documents:update`
 - Response: empty (204 status code)
 
+### List custom property definitions
+
+**GET** `/api/organizations/:organizationId/custom-properties`
+
+List all custom property definitions configured in the organization.
+
+- Required API key permissions: `organizations:read`
+- Response (JSON)
+  - `propertyDefinitions`: The list of property definitions.
+
+### Create a custom property definition
+
+**POST** `/api/organizations/:organizationId/custom-properties`
+
+Create a new custom property definition in the organization.
+
+- Required API key permissions: `organizations:update`
+- Body (JSON)
+  - `name`: The property name.
+  - `description`: (optional) The property description.
+  - `type`: The property type.
+  - `options`: (optional) The select or multi-select options.
+- Response (JSON)
+  - `propertyDefinition`: The created definition.
+
+### Get a custom property definition
+
+**GET** `/api/organizations/:organizationId/custom-properties/:propertyDefinitionId`
+
+Get a custom property definition by its ID.
+
+- Required API key permissions: `organizations:read`
+- Response (JSON)
+  - `definition`: The property definition.
+
+### Update a custom property definition
+
+**PUT** `/api/organizations/:organizationId/custom-properties/:propertyDefinitionId`
+
+Update an existing custom property definition.
+
+- Required API key permissions: `organizations:update`
+- Body (JSON)
+  - `name`: (optional) The property name.
+  - `description`: (optional) The property description.
+  - `options`: (optional) The updated options list.
+- Response (JSON)
+  - `propertyDefinition`: The updated definition.
+
+### Delete a custom property definition
+
+**DELETE** `/api/organizations/:organizationId/custom-properties/:propertyDefinitionId`
+
+Delete a custom property definition by its ID.
+
+- Required API key permissions: `organizations:update`
+- Response: empty (200 status code)
+
+### List a document custom properties
+
+**GET** `/api/organizations/:organizationId/documents/:documentId/custom-properties`
+
+List the custom property values of a document.
+
+- Required API key permissions: `documents:read`
+- Response (JSON)
+  - `customProperties`: The list of custom property values for the document.
+
+### Set a document custom property value
+
+**PUT** `/api/organizations/:organizationId/documents/:documentId/custom-properties/:propertyDefinitionId`
+
+Set or replace a custom property value on a document.
+
+- Required API key permissions: `documents:update`
+- Body (JSON)
+  - `value`: The property value. Validation depends on the property type.
+- Response: empty (204 status code)
+
+### Delete a document custom property value
+
+**DELETE** `/api/organizations/:organizationId/documents/:documentId/custom-properties/:propertyDefinitionId`
+
+Delete a custom property value from a document.
+
+- Required API key permissions: `documents:update`
+- Response: empty (204 status code)
+
+### List tagging rules
+
+**GET** `/api/organizations/:organizationId/tagging-rules`
+
+List the tagging rules configured in the organization.
+
+- Required API key permissions: `organizations:read`
+- Response (JSON)
+  - `taggingRules`: The list of tagging rules.
+
+### Create a tagging rule
+
+**POST** `/api/organizations/:organizationId/tagging-rules`
+
+Create a new tagging rule.
+
+- Required API key permissions: `organizations:update`
+- Body (JSON)
+  - `name`: The rule name.
+  - `description`: (optional) The rule description.
+  - `enabled`: (optional) Whether the rule is enabled.
+  - `conditionMatchMode`: (optional) Whether all or any conditions should match.
+  - `conditions`: The list of rule conditions.
+  - `tagIds`: The tags to apply when the rule matches.
+- Response: empty (204 status code)
+
+### Get a tagging rule
+
+**GET** `/api/organizations/:organizationId/tagging-rules/:taggingRuleId`
+
+Get a tagging rule by its ID.
+
+- Required API key permissions: `organizations:read`
+- Response (JSON)
+  - `taggingRule`: The tagging rule.
+
+### Update a tagging rule
+
+**PUT** `/api/organizations/:organizationId/tagging-rules/:taggingRuleId`
+
+Update an existing tagging rule.
+
+- Required API key permissions: `organizations:update`
+- Body (JSON)
+  - `name`: The rule name.
+  - `description`: (optional) The rule description.
+  - `enabled`: (optional) Whether the rule is enabled.
+  - `conditionMatchMode`: (optional) Whether all or any conditions should match.
+  - `conditions`: The updated list of rule conditions.
+  - `tagIds`: The updated tags to apply.
+- Response: empty (204 status code)
+
+### Delete a tagging rule
+
+**DELETE** `/api/organizations/:organizationId/tagging-rules/:taggingRuleId`
+
+Delete a tagging rule by its ID.
+
+- Required API key permissions: `organizations:update`
+- Response: empty (204 status code)
+
 ### Apply tagging rule to existing documents
 
 **POST** `/api/organizations/:organizationId/tagging-rules/:taggingRuleId/apply`
 
 Enqueue a background task to apply a tagging rule to all existing documents in the organization. This endpoint returns immediately with a task ID, and the processing happens asynchronously in the background. The task will check all documents and apply tags where the rule's conditions match.
 
-- Required API key permissions: `tags:read` and `documents:update`
+- Required API key permissions: `organizations:update`
 - Response (JSON, HTTP 202)
   - `taskId`: The ID of the background task. You can use this to track the task's progress (task status retrieval coming in a future release).
+
+### Create a meeting
+
+**POST** `/api/organizations/:organizationId/meetings`
+
+Create a meeting record with searchable transcript chunks. This is intended for importing transcripts, summaries, and chunk-level speaker/timestamp data generated by an external pipeline.
+
+- Required API key permissions: `documents:create`
+- Body (JSON)
+  - `title`: The meeting title.
+  - `sourceName`: (optional) The original audio or video file name.
+  - `sourceStorageKey`: (optional) The storage key of the source media.
+  - `transcriptStorageKey`: (optional) The storage key of the refined transcript artifact.
+  - `rawTranscriptStorageKey`: (optional) The storage key of the raw transcript artifact.
+  - `language`: (optional) The detected dominant language, such as `pt`, `en`, or `mixed`.
+  - `context`: (optional) The detected context, such as `financeiro`, `tecnologia`, `juridico`, or `geral`.
+  - `summary`: (optional) A short meeting summary.
+  - `startedAt`: (optional) The meeting start timestamp.
+  - `endedAt`: (optional) The meeting end timestamp.
+  - `chunks`: A non-empty list of transcript chunks.
+    - `speaker`: (optional) Speaker label for the chunk.
+    - `startedAtMs`: (optional) Start offset in milliseconds.
+    - `endedAtMs`: (optional) End offset in milliseconds.
+    - `content`: The transcript content for the chunk.
+- Response (JSON)
+  - `meeting`: The created meeting metadata.
+
+### Ingest a meeting
+
+**POST** `/api/organizations/:organizationId/meetings/ingest`
+
+Create or update a meeting record idempotently using `sourceStorageKey` as the external pipeline key. This endpoint is intended for ingestion pipelines that may retry or refine the same transcript more than once.
+
+- Required API key permissions: `documents:create`
+- Body (JSON)
+  - Same fields as `POST /api/organizations/:organizationId/meetings`
+  - `sourceStorageKey`: Required. Used as the idempotency key within the organization.
+- Response (JSON)
+  - `mode`: Either `created` or `updated`
+  - `meeting`: The created or updated meeting metadata.
+
+### List meetings
+
+**GET** `/api/organizations/:organizationId/meetings`
+
+List meeting records stored in the organization.
+
+- Required API key permissions: `documents:read`
+- Query parameters
+  - `pageIndex`: (optional, default: 0) The page index to start from.
+  - `pageSize`: (optional, default: 100, max: 100) The number of meetings to return.
+- Response (JSON)
+  - `meetings`: The list of meetings.
+  - `meetingsCount`: The total number of meetings.
+
+### Get a meeting
+
+**GET** `/api/organizations/:organizationId/meetings/:meetingId`
+
+Get a meeting by its ID, including its transcript chunks.
+
+- Required API key permissions: `documents:read`
+- Response (JSON)
+  - `meeting`: The meeting.
+    - `chunks`: The ordered transcript chunks associated with the meeting.
+
+### Update a meeting
+
+**PATCH** `/api/organizations/:organizationId/meetings/:meetingId`
+
+Update the metadata of a meeting without replacing its transcript chunks.
+
+- Required API key permissions: `documents:update`
+- Body (JSON)
+  - `title`: (optional) The meeting title.
+  - `sourceName`: (optional) The source file name.
+  - `sourceStorageKey`: (optional) The source storage key.
+  - `transcriptStorageKey`: (optional) The refined transcript storage key.
+  - `rawTranscriptStorageKey`: (optional) The raw transcript storage key.
+  - `language`: (optional) The dominant language.
+  - `context`: (optional) The detected context.
+  - `summary`: (optional) The updated summary.
+  - `startedAt`: (optional) The meeting start timestamp.
+  - `endedAt`: (optional) The meeting end timestamp.
+- Response (JSON)
+  - `meeting`: The updated meeting.
+
+### Delete a meeting
+
+**DELETE** `/api/organizations/:organizationId/meetings/:meetingId`
+
+Delete a meeting and its indexed transcript chunks.
+
+- Required API key permissions: `documents:delete`
+- Response: empty (204 status code)
+
+### Search meetings
+
+**GET** `/api/organizations/:organizationId/meetings/search`
+
+Search meetings by transcript chunk content using a full-text index.
+
+- Required API key permissions: `documents:read`
+- Query parameters
+  - `searchQuery`: The full-text query string.
+  - `pageIndex`: (optional, default: 0) The page index to start from.
+  - `pageSize`: (optional, default: 100, max: 100) The number of meetings to return.
+- Response (JSON)
+  - `meetings`: The list of meetings matching the query.
+    - `matches`: The most relevant matching transcript chunks for each meeting.
+      - `chunkId`: The chunk ID.
+      - `speaker`: The chunk speaker label, if available.
+      - `startedAtMs`: The chunk start offset in milliseconds, if available.
+      - `endedAtMs`: The chunk end offset in milliseconds, if available.
+      - `content`: The original chunk content.
+      - `snippet`: A highlighted snippet generated from the full-text match.
+  - `totalCount`: The total number of meetings matching the query.

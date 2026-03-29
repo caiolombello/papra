@@ -37,6 +37,38 @@ await client.uploadDocument({
   file: myFile,
   organizationId: 'org_...', // The id of the organization you want to upload the document to
 });
+
+const { meeting } = await client.createMeeting({
+  organizationId: 'org_...',
+  meeting: {
+    title: 'Weekly architecture sync',
+    language: 'pt',
+    context: 'tecnologia',
+    chunks: [
+      { speaker: 'Caio', startedAtMs: 0, endedAtMs: 6000, content: 'Vamos usar MCP e OpenAI.' },
+    ],
+  },
+});
+
+const ingestedMeeting = await client.ingestMeeting({
+  organizationId: 'org_...',
+  meeting: {
+    title: 'Weekly architecture sync',
+    sourceStorageKey: 'uploads/2026-03-29/meeting-123.flac',
+    transcriptStorageKey: 'transcripts/meeting-123/transcript.txt',
+    chunks: [
+      { speaker: 'Caio', startedAtMs: 0, endedAtMs: 6000, content: 'Vamos usar MCP e OpenAI.' },
+    ],
+  },
+});
+
+const { propertyDefinitions } = await client.listCustomProperties({
+  organizationId: 'org_...',
+});
+
+const { taggingRules } = await client.listTaggingRules({
+  organizationId: 'org_...',
+});
 ```
 
 You can also scope the client to a specific organization:
@@ -45,6 +77,33 @@ You can also scope the client to a specific organization:
 const client = createClient({ apiKey, apiBaseUrl }).forOrganization('org_...');
 
 await client.uploadDocument({ file });
+
+await client.createTaggingRule({
+  taggingRule: {
+    name: 'Invoices',
+    description: 'Auto-tag invoices from known vendors',
+    conditions: [{ field: 'content', operator: 'contains', value: 'Invoice' }],
+    tagIds: ['tag_...'],
+  },
+});
+
+const { meetings } = await client.searchMeetings({
+  searchQuery: 'LangChain',
+});
+
+await client.updateMeeting({
+  organizationId: 'org_...',
+  meetingId: meeting.id,
+  meeting: {
+    summary: 'Discussed MCP, OpenAI, and LangChain integration.',
+  },
+});
+
+const unifiedSearch = await client.search({
+  organizationId: 'org_...',
+  searchQuery: 'LangChain',
+  scope: 'all',
+});
 ```
 
 ## License

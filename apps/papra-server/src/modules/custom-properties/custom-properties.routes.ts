@@ -32,7 +32,7 @@ export function registerCustomPropertiesRoutes(context: RouteDefinitionContext) 
 function setupCreatePropertyDefinitionRoute({ app, db, config }: RouteDefinitionContext) {
   app.post(
     '/api/organizations/:organizationId/custom-properties',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.UPDATE] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
     })),
@@ -64,7 +64,7 @@ function setupCreatePropertyDefinitionRoute({ app, db, config }: RouteDefinition
 function setupGetOrganizationPropertyDefinitionsRoute({ app, db }: RouteDefinitionContext) {
   app.get(
     '/api/organizations/:organizationId/custom-properties',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.READ] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
     })),
@@ -87,7 +87,7 @@ function setupGetOrganizationPropertyDefinitionsRoute({ app, db }: RouteDefiniti
 function setupGetPropertyDefinitionRoute({ app, db }: RouteDefinitionContext) {
   app.get(
     '/api/organizations/:organizationId/custom-properties/:propertyDefinitionId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.READ] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       propertyDefinitionId: customPropertyDefinitionIdSchema,
@@ -115,7 +115,7 @@ function setupGetPropertyDefinitionRoute({ app, db }: RouteDefinitionContext) {
 function setupUpdatePropertyDefinitionRoute({ app, db }: RouteDefinitionContext) {
   app.put(
     '/api/organizations/:organizationId/custom-properties/:propertyDefinitionId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.UPDATE] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       propertyDefinitionId: customPropertyDefinitionIdSchema,
@@ -147,7 +147,7 @@ function setupUpdatePropertyDefinitionRoute({ app, db }: RouteDefinitionContext)
 function setupDeletePropertyDefinitionRoute({ app, db }: RouteDefinitionContext) {
   app.delete(
     '/api/organizations/:organizationId/custom-properties/:propertyDefinitionId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.UPDATE] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       propertyDefinitionId: customPropertyDefinitionIdSchema,
