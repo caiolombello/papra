@@ -203,6 +203,7 @@ export const translations: Partial<TranslationsDictionary> = {
   'organizations.details.documents-count': 'documentos no total',
   'organizations.details.total-size': 'tamanho total',
   'organizations.details.latest-documents': 'Documentos importados recentemente',
+  'documents.list.related-meetings.title': 'Reuniões relacionadas',
   'meetings.list.title': 'Reuniões',
   'meetings.list.search.placeholder': 'Buscar reuniões',
   'meetings.list.search.total-count-no-query': '{{ count }} reuniões no total',
@@ -211,6 +212,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'meetings.list.empty.description': 'As transcrições ingeridas pelo pipeline de gravação aparecerão aqui.',
   'meetings.list.empty.filtered-description': 'Nenhuma reunião corresponde à busca atual.',
   'meetings.list.no-preview': 'Nenhuma prévia de transcrição disponível.',
+  'meetings.delete.button': 'Excluir reunião',
+  'meetings.delete.success': 'Reunião excluída',
+  'meetings.delete.confirm.title': 'Excluir reunião',
+  'meetings.delete.confirm.message': 'Tem certeza de que deseja excluir esta reunião? Os chunks da transcrição serão removidos do Papra.',
+  'meetings.delete.confirm.confirm-button': 'Excluir reunião',
+  'meetings.delete.confirm.cancel-button': 'Cancelar',
   'meetings.details.created-at': 'Criada',
   'meetings.details.metadata.title': 'Metadados',
   'meetings.details.metadata.description': 'Referências de storage e metadados de ingestão desta reunião.',
@@ -835,8 +842,10 @@ export const translations: Partial<TranslationsDictionary> = {
   'command-palette.search.placeholder': 'Buscar comandos ou documentos',
   'command-palette.no-results': 'Nenhum resultado encontrado',
   'command-palette.sections.documents': 'Documentos',
+  'command-palette.sections.meetings': 'Reuniões',
   'command-palette.sections.theme': 'Tema',
   'command-palette.show-more-results': 'Mostrar mais {{ count }} resultados para "{{ query }}"',
+  'command-palette.show-more-meeting-results': 'Mostrar mais {{ count }} resultados de reuniões para "{{ query }}"',
 
   // API errors
 

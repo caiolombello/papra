@@ -75,3 +75,16 @@ export async function fetchMeeting({
 
   return { meeting: coerceMeeting(meeting) };
 }
+
+export async function deleteMeeting({
+  organizationId,
+  meetingId,
+}: {
+  organizationId: string;
+  meetingId: string;
+}) {
+  await apiClient({
+    method: 'DELETE',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}`,
+  });
+}

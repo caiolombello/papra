@@ -3,7 +3,7 @@ import { safely } from '@corentinth/chisels';
 import { useNavigate, useParams } from '@solidjs/router';
 import { createContext, createEffect, createSignal, For, on, onCleanup, onMount, Show, useContext } from 'solid-js';
 import { getDocumentIcon, makeDocumentSearchPermalink } from '../documents/document.models';
-import { fetchOrganizationDocuments } from '../documents/documents.services';
+import { searchOrganizationContent } from '../search/search.services';
 import { useI18n } from '../i18n/i18n.provider';
 import { cn } from '../shared/style/cn';
 import { toArrayIf } from '../shared/utils/array';
@@ -30,9 +30,11 @@ export function useCommandPalette() {
 export const CommandPaletteProvider: ParentComponent = (props) => {
   const [getIsCommandPaletteOpen, setIsCommandPaletteOpen] = createSignal(false);
   const [getMatchingDocuments, setMatchingDocuments] = createSignal<{ id: string; name: string }[]>([]);
+  const [getMatchingMeetings, setMatchingMeetings] = createSignal<{ id: string; title: string }[]>([]);
   const [getSearchQuery, setSearchQuery] = createSignal('');
   const [getIsLoading, setIsLoading] = createSignal(false);
   const [getMatchingDocumentsTotalCount, setMatchingDocumentsTotalCount] = createSignal(0);
+  const [getMatchingMeetingsTotalCount, setMatchingMeetingsTotalCount] = createSignal(0);
 
   const params = useParams();
   const { t } = useI18n();
@@ -55,11 +57,13 @@ export const CommandPaletteProvider: ParentComponent = (props) => {
   const navigate = useNavigate();
   const { setThemePreference } = useTheme();
 
-  const searchDocs = debounce(async ({ searchQuery }: { searchQuery: string }) => {
-    const [result] = await safely(fetchOrganizationDocuments({ searchQuery, organizationId: params.organizationId, pageIndex: 0, pageSize: 5 }));
+  const searchContent = debounce(async ({ searchQuery }: { searchQuery: string }) => {
+    const [result] = await safely(searchOrganizationContent({ searchQuery, organizationId: params.organizationId, pageIndex: 0, pageSize: 5 }));
 
     setMatchingDocuments(result?.documents ?? []);
     setMatchingDocumentsTotalCount(result?.documentsCount ?? 0);
+    setMatchingMeetings(result?.meetings ?? []);
+    setMatchingMeetingsTotalCount(result?.meetingsCount ?? 0);
     setIsLoading(false);
   }, 300);
 
@@ -68,9 +72,11 @@ export const CommandPaletteProvider: ParentComponent = (props) => {
     (searchQuery) => {
       setMatchingDocuments([]);
       setMatchingDocumentsTotalCount(0);
+      setMatchingMeetings([]);
+      setMatchingMeetingsTotalCount(0);
       if (searchQuery.length > 1) {
         setIsLoading(true);
-        searchDocs({ searchQuery });
+        searchContent({ searchQuery });
       }
     },
   ));
@@ -97,6 +103,27 @@ export const CommandPaletteProvider: ParentComponent = (props) => {
             label: t('command-palette.show-more-results', { count: getMatchingDocumentsTotalCount() - getMatchingDocuments().length, query: getSearchQuery() }),
             icon: 'i-tabler-search',
             action: () => navigate(makeDocumentSearchPermalink({ organizationId: params.organizationId, search: { query: getSearchQuery() } })),
+            forceMatch: true,
+          },
+        ),
+      ],
+    },
+    {
+      label: t('command-palette.sections.meetings'),
+      forceMatch: true,
+      options: [
+        ...getMatchingMeetings().map(meeting => ({
+          label: meeting.title,
+          icon: 'i-tabler-microphone-2',
+          action: () => navigate(`/organizations/${params.organizationId}/meetings/${meeting.id}`),
+          forceMatch: true,
+        })),
+        ...toArrayIf(
+          getMatchingMeetingsTotalCount() > getMatchingMeetings().length,
+          {
+            label: t('command-palette.show-more-meeting-results', { count: getMatchingMeetingsTotalCount() - getMatchingMeetings().length, query: getSearchQuery() }),
+            icon: 'i-tabler-microphone-2',
+            action: () => navigate(`/organizations/${params.organizationId}/meetings?query=${encodeURIComponent(getSearchQuery())}`),
             forceMatch: true,
           },
         ),

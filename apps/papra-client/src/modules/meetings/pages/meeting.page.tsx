@@ -1,12 +1,17 @@
 import type { Component } from 'solid-js';
-import { useParams } from '@solidjs/router';
-import { useQuery } from '@tanstack/solid-query';
+import { useNavigate, useParams } from '@solidjs/router';
+import { useMutation, useQuery } from '@tanstack/solid-query';
 import { For, Show, Suspense } from 'solid-js';
 import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
 import { useI18n } from '@/modules/i18n/i18n.provider';
+import { useConfirmModal } from '@/modules/shared/confirm';
+import { useI18nApiErrors } from '@/modules/shared/http/composables/i18n-api-errors';
+import { queryClient } from '@/modules/shared/query/query-client';
 import { Badge } from '@/modules/ui/components/badge';
+import { Button } from '@/modules/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
-import { fetchMeeting } from '../meetings.services';
+import { createToast } from '@/modules/ui/components/sonner';
+import { deleteMeeting, fetchMeeting } from '../meetings.services';
 
 function formatDurationFromMs(startedAtMs?: number | null, endedAtMs?: number | null) {
   if (startedAtMs == null && endedAtMs == null) {
@@ -36,12 +41,47 @@ function formatDurationFromMs(startedAtMs?: number | null, endedAtMs?: number | 
 
 export const MeetingPage: Component = () => {
   const params = useParams();
+  const navigate = useNavigate();
   const { t, formatDate } = useI18n();
+  const { confirm } = useConfirmModal();
+  const { getErrorMessage } = useI18nApiErrors({ t });
 
   const meetingQuery = useQuery(() => ({
     queryKey: ['organizations', params.organizationId, 'meetings', params.meetingId],
     queryFn: () => fetchMeeting({ organizationId: params.organizationId, meetingId: params.meetingId }),
   }));
+
+  const deleteMeetingMutation = useMutation(() => ({
+    mutationFn: () => deleteMeeting({ organizationId: params.organizationId, meetingId: params.meetingId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'meetings'] });
+      createToast({ type: 'success', message: t('meetings.delete.success') });
+      navigate(`/organizations/${params.organizationId}/meetings`);
+    },
+    onError: (error) => {
+      createToast({ type: 'error', message: getErrorMessage({ error }) });
+    },
+  }));
+
+  const handleDelete = async () => {
+    const isConfirmed = await confirm({
+      title: t('meetings.delete.confirm.title'),
+      message: t('meetings.delete.confirm.message'),
+      confirmButton: {
+        text: t('meetings.delete.confirm.confirm-button'),
+        variant: 'destructive',
+      },
+      cancelButton: {
+        text: t('meetings.delete.confirm.cancel-button'),
+      },
+    });
+
+    if (!isConfirmed) {
+      return;
+    }
+
+    await deleteMeetingMutation.mutateAsync();
+  };
 
   return (
     <div class="p-6 mt-4 pb-32 max-w-5xl mx-auto">
@@ -51,22 +91,33 @@ export const MeetingPage: Component = () => {
             const meeting = getMeeting();
             return (
               <div class="space-y-6">
-                <div class="space-y-3">
-                  <h1 class="text-2xl font-semibold leading-tight">{meeting.title}</h1>
-                  <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                    <span>{t('meetings.details.created-at')}</span>
-                    <RelativeTime date={meeting.createdAt} />
-                    <Show when={meeting.sourceName}>
-                      <span class="truncate">{meeting.sourceName}</span>
-                    </Show>
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div class="space-y-3 min-w-0">
+                    <h1 class="text-2xl font-semibold leading-tight">{meeting.title}</h1>
+                    <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                      <span>{t('meetings.details.created-at')}</span>
+                      <RelativeTime date={meeting.createdAt} />
+                      <Show when={meeting.sourceName}>
+                        <span class="truncate">{meeting.sourceName}</span>
+                      </Show>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                      <Show when={meeting.context}>
+                        <Badge variant="secondary">{meeting.context}</Badge>
+                      </Show>
+                      <Show when={meeting.language}>
+                        <Badge variant="outline">{meeting.language}</Badge>
+                      </Show>
+                    </div>
                   </div>
-                  <div class="flex flex-wrap gap-2">
-                    <Show when={meeting.context}>
-                      <Badge variant="secondary">{meeting.context}</Badge>
-                    </Show>
-                    <Show when={meeting.language}>
-                      <Badge variant="outline">{meeting.language}</Badge>
-                    </Show>
+                  <div class="flex items-center gap-2">
+                    <Button
+                      variant="destructive"
+                      onClick={handleDelete}
+                      isLoading={deleteMeetingMutation.isPending}
+                    >
+                      {t('meetings.delete.button')}
+                    </Button>
                   </div>
                 </div>
 

@@ -201,6 +201,7 @@ export const translations = {
   'organizations.details.documents-count': 'documents in total',
   'organizations.details.total-size': 'total size',
   'organizations.details.latest-documents': 'Latest imported documents',
+  'documents.list.related-meetings.title': 'Matching meetings',
   'meetings.list.title': 'Meetings',
   'meetings.list.search.placeholder': 'Search meetings',
   'meetings.list.search.total-count-no-query': '{{ count }} meetings in total',
@@ -209,6 +210,12 @@ export const translations = {
   'meetings.list.empty.description': 'Meeting transcripts ingested from your recording pipeline will appear here.',
   'meetings.list.empty.filtered-description': 'No meetings matched your current search.',
   'meetings.list.no-preview': 'No transcript preview available.',
+  'meetings.delete.button': 'Delete meeting',
+  'meetings.delete.success': 'Meeting deleted',
+  'meetings.delete.confirm.title': 'Delete meeting',
+  'meetings.delete.confirm.message': 'Are you sure you want to delete this meeting? Its transcript chunks will be removed from Papra.',
+  'meetings.delete.confirm.confirm-button': 'Delete meeting',
+  'meetings.delete.confirm.cancel-button': 'Cancel',
   'meetings.details.created-at': 'Created',
   'meetings.details.metadata.title': 'Metadata',
   'meetings.details.metadata.description': 'Storage references and ingestion metadata for this meeting.',
@@ -833,8 +840,10 @@ export const translations = {
   'command-palette.search.placeholder': 'Search commands or documents',
   'command-palette.no-results': 'No results found',
   'command-palette.sections.documents': 'Documents',
+  'command-palette.sections.meetings': 'Meetings',
   'command-palette.sections.theme': 'Theme',
   'command-palette.show-more-results': 'Show {{ count }} more results for "{{ query }}"',
+  'command-palette.show-more-meeting-results': 'Show {{ count }} more meeting results for "{{ query }}"',
 
   // API errors
 
