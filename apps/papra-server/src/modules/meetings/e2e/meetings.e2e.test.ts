@@ -125,6 +125,39 @@ describe('meetings e2e', () => {
     expect(searchMeetings[0]?.matches?.[0]?.snippet).toContain('LangChain');
   });
 
+  test('can search meetings by title even when transcript does not contain the query', async () => {
+    const { app } = await setupApp();
+
+    await app.request(
+      `/api/organizations/${ORG_ID}/meetings`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Weekly architecture sync',
+          chunks: [
+            { speaker: 'Caio', content: 'Discussão geral sem a palavra procurada.' },
+          ],
+        }),
+      },
+      { loggedInUserId: USER_ID },
+    );
+
+    const searchResponse = await app.request(
+      `/api/organizations/${ORG_ID}/meetings/search?searchQuery=architecture`,
+      { method: 'GET' },
+      { loggedInUserId: USER_ID },
+    );
+
+    expect(searchResponse.status).toBe(200);
+
+    const { meetings: searchMeetings, totalCount } = await searchResponse.json() as { meetings: MeetingForApi[]; totalCount: number };
+
+    expect(totalCount).toBe(1);
+    expect(searchMeetings[0]?.title).toBe('Weekly architecture sync');
+    expect(searchMeetings[0]?.matches?.[0]?.snippet).toBe('Weekly architecture sync');
+  });
+
   test('can update and delete a meeting', async () => {
     const { app } = await setupApp();
 

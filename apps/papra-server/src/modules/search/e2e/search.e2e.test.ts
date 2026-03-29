@@ -115,4 +115,27 @@ describe('search e2e', () => {
     expect(body.meetings[0]?.title).toBe('Weekly architecture sync');
     expect(body.totalCount).toBe(1);
   });
+
+  test('can find meetings by title through unified search', async () => {
+    const { app } = await setupApp();
+
+    const response = await app.request(
+      `/api/organizations/${ORG_ID}/search?searchQuery=architecture&scope=meetings`,
+      { method: 'GET' },
+      { loggedInUserId: USER_ID },
+    );
+
+    expect(response.status).toBe(200);
+
+    const body = await response.json() as {
+      meetings: Array<{ title: string; matches?: Array<{ snippet: string }> }>;
+      meetingsCount: number;
+      totalCount: number;
+    };
+
+    expect(body.meetingsCount).toBe(1);
+    expect(body.totalCount).toBe(1);
+    expect(body.meetings[0]?.title).toBe('Weekly architecture sync');
+    expect(body.meetings[0]?.matches?.[0]?.snippet).toBe('Weekly architecture sync');
+  });
 });

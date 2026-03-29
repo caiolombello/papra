@@ -324,8 +324,9 @@ async function searchOrganizationMeetings({
   db: Database;
 }) {
   const normalizedSearchQuery = normalizeMeetingSearchQuery({ query: searchQuery });
+  const titleLikeQuery = `%${searchQuery.trim().toLowerCase()}%`;
 
-  if (normalizedSearchQuery.length === 0) {
+  if (normalizedSearchQuery.length === 0 && searchQuery.trim().length === 0) {
     return {
       meetings: [],
       meetingsCount: 0,
@@ -333,17 +334,42 @@ async function searchOrganizationMeetings({
   }
 
   const countResult = await db.run(sql`
-    SELECT COUNT(DISTINCT meeting_id) as count
-    FROM meeting_chunks_fts
-    WHERE organization_id = ${organizationId}
-      AND meeting_chunks_fts MATCH ${normalizedSearchQuery}
+    WITH matched_meeting_ids AS (
+      SELECT id AS meeting_id
+      FROM meetings
+      WHERE organization_id = ${organizationId}
+        AND lower(title) LIKE ${titleLikeQuery}
+      UNION
+      SELECT DISTINCT meeting_id
+      FROM meeting_chunks_fts
+      WHERE organization_id = ${organizationId}
+        AND meeting_chunks_fts MATCH ${normalizedSearchQuery}
+    )
+    SELECT COUNT(*) as count
+    FROM matched_meeting_ids
   `);
 
   const paginatedResult = await db.run(sql`
-    SELECT DISTINCT meeting_id, MAX(rowid) as ranking
-    FROM meeting_chunks_fts
-    WHERE organization_id = ${organizationId}
-      AND meeting_chunks_fts MATCH ${normalizedSearchQuery}
+    WITH title_matches AS (
+      SELECT id AS meeting_id, updated_at AS ranking
+      FROM meetings
+      WHERE organization_id = ${organizationId}
+        AND lower(title) LIKE ${titleLikeQuery}
+    ),
+    chunk_matches AS (
+      SELECT meeting_id, MAX(rowid) as ranking
+      FROM meeting_chunks_fts
+      WHERE organization_id = ${organizationId}
+        AND meeting_chunks_fts MATCH ${normalizedSearchQuery}
+      GROUP BY meeting_id
+    ),
+    merged_matches AS (
+      SELECT meeting_id, ranking FROM title_matches
+      UNION ALL
+      SELECT meeting_id, ranking FROM chunk_matches
+    )
+    SELECT meeting_id, MAX(ranking) as ranking
+    FROM merged_matches
     GROUP BY meeting_id
     ORDER BY ranking DESC
     LIMIT ${pageSize}
@@ -373,6 +399,7 @@ async function searchOrganizationMeetings({
     organizationId,
     meetingIds,
     normalizedSearchQuery,
+    searchQuery,
   });
 
   return {
@@ -399,12 +426,43 @@ async function getSearchMatchesByMeetingId({
   organizationId,
   meetingIds,
   normalizedSearchQuery,
+  searchQuery,
 }: {
   db: Database;
   organizationId: string;
   meetingIds: string[];
   normalizedSearchQuery: string;
+  searchQuery: string;
 }) {
+  const titleLikeQuery = `%${searchQuery.trim().toLowerCase()}%`;
+  const titleMatchesResult = await db.run(sql`
+    SELECT
+      id as meeting_id,
+      title as title
+    FROM meetings
+    WHERE organization_id = ${organizationId}
+      AND id IN (${sql.join(meetingIds.map(meetingId => sql`${meetingId}`), sql`, `)})
+      AND lower(title) LIKE ${titleLikeQuery}
+  `);
+
+  const matchesByMeetingId = new Map<string, MeetingSearchMatch[]>();
+
+  for (const row of titleMatchesResult.rows) {
+    const meetingId = String(row.meeting_id);
+    matchesByMeetingId.set(meetingId, [{
+      chunkId: `title:${meetingId}`,
+      speaker: null,
+      startedAtMs: null,
+      endedAtMs: null,
+      content: String(row.title),
+      snippet: String(row.title),
+    }]);
+  }
+
+  if (normalizedSearchQuery.length === 0) {
+    return matchesByMeetingId;
+  }
+
   const meetingIdsSql = sql.join(meetingIds.map(meetingId => sql`${meetingId}`), sql`, `);
   const result = await db.run(sql`
     SELECT
@@ -423,8 +481,6 @@ async function getSearchMatchesByMeetingId({
       AND meeting_chunks_fts.meeting_id IN (${meetingIdsSql})
     ORDER BY rank ASC
   `);
-  const matchesByMeetingId = new Map<string, MeetingSearchMatch[]>();
-
   for (const row of result.rows) {
     const meetingId = String(row.meeting_id);
     const currentMatches = matchesByMeetingId.get(meetingId) ?? [];
