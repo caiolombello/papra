@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/mod
 import { EmptyState } from '@/modules/ui/components/empty';
 import { Button } from '@/modules/ui/components/button';
 import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
+import { MeetingUploadArea } from '../components/meeting-upload-area.component';
 import { fetchOrganizationMeetings, searchOrganizationMeetings } from '../meetings.services';
 
 export const MeetingsPage: Component = () => {
@@ -67,6 +68,10 @@ export const MeetingsPage: Component = () => {
               <div class={cn('text-muted-foreground', meetingsQuery.isFetching ? 'i-tabler-loader-2 animate-spin' : 'i-tabler-x')} />
             </Button>
           </Show>
+        </div>
+
+        <div class="mt-4 mb-4">
+          <MeetingUploadArea />
         </div>
 
         <div class="mb-6 text-sm text-muted-foreground mt-2 ml-2">

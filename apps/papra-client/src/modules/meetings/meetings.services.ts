@@ -76,6 +76,58 @@ export async function fetchMeeting({
   return { meeting: coerceMeeting(meeting) };
 }
 
+export async function uploadMeetingFile({
+  file,
+  organizationId,
+  onProgress,
+}: {
+  file: File;
+  organizationId: string;
+  onProgress?: (progress: number) => void;
+}) {
+  const { uploadUrl } = await apiClient<{ uploadUrl: string; storageKey: string; fileName: string }>({
+    method: 'POST',
+    path: `/api/organizations/${organizationId}/meetings/upload/presign`,
+    body: { fileName: file.name },
+  });
+
+  await uploadToPresignedUrl({ file, uploadUrl, onProgress });
+}
+
+function uploadToPresignedUrl({
+  file,
+  uploadUrl,
+  onProgress,
+}: {
+  file: File;
+  uploadUrl: string;
+  onProgress?: (progress: number) => void;
+}) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable) {
+        onProgress?.(event.loaded / event.total);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`Upload failed with status ${xhr.status}`));
+      }
+    });
+
+    xhr.addEventListener('error', () => reject(new Error('Upload failed')));
+    xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+
+    xhr.open('PUT', uploadUrl);
+    xhr.send(file);
+  });
+}
+
 export async function deleteMeeting({
   organizationId,
   meetingId,

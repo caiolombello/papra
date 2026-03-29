@@ -9,10 +9,12 @@ import { ensureUserIsInOrganization } from '../organizations/organizations.useca
 import { createError } from '../shared/errors/errors';
 import { validateJsonBody, validateParams, validateQuery } from '../shared/validation/validation';
 import { deleteMeetingArtifacts } from './meetings-artifacts.storage';
+import { createMeetingUploadPresignedUrl, isMeetingUploadEnabled } from './meetings-upload.storage';
 import { createMeetingsRepository } from './meetings.repository';
 import { createMeetingBodySchema, ingestMeetingBodySchema, meetingIdSchema, updateMeetingBodySchema } from './meetings.schemas';
 
 export function registerMeetingsRoutes(context: RouteDefinitionContext) {
+  setupUploadMeetingRoute(context);
   setupIngestMeetingRoute(context);
   setupCreateMeetingRoute(context);
   setupListMeetingsRoute(context);
@@ -20,6 +22,31 @@ export function registerMeetingsRoutes(context: RouteDefinitionContext) {
   setupGetMeetingRoute(context);
   setupUpdateMeetingRoute(context);
   setupDeleteMeetingRoute(context);
+}
+
+function setupUploadMeetingRoute({ app, db, config }: RouteDefinitionContext) {
+  app.post(
+    '/api/organizations/:organizationId/meetings/upload/presign',
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.DOCUMENTS.CREATE] }),
+    validateParams(z.object({
+      organizationId: organizationIdSchema,
+    })),
+    validateJsonBody(z.object({
+      fileName: z.string().trim().min(1).max(256),
+    })),
+    async (context) => {
+      const { userId } = getUser({ context });
+      const { organizationId } = context.req.valid('param');
+      const { fileName } = context.req.valid('json');
+
+      const organizationsRepository = createOrganizationsRepository({ db });
+      await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
+
+      const result = await createMeetingUploadPresignedUrl({ config, fileName });
+
+      return context.json(result);
+    },
+  );
 }
 
 function setupIngestMeetingRoute({ app, db }: RouteDefinitionContext) {
