@@ -22,6 +22,8 @@ import { DocumentPage } from './modules/documents/pages/document.page';
 import { DocumentsPage } from './modules/documents/pages/documents.page';
 import { IntakeEmailsPage } from './modules/intake-emails/pages/intake-emails.page';
 import { InvitationsPage } from './modules/invitations/pages/invitations.page';
+import { MeetingPage } from './modules/meetings/pages/meeting.page';
+import { MeetingsPage } from './modules/meetings/pages/meetings.page';
 import { useLastOrganization } from './modules/organizations/composables/use-last-organization';
 import { fetchOrganizations } from './modules/organizations/organizations.services';
 import { CreateFirstOrganizationPage } from './modules/organizations/pages/create-first-organization.page';
@@ -137,6 +139,14 @@ export const routes: RouteDefinition[] = [
                   {
                     path: '/documents/:documentId',
                     component: DocumentPage,
+                  },
+                  {
+                    path: '/meetings',
+                    component: MeetingsPage,
+                  },
+                  {
+                    path: '/meetings/:meetingId',
+                    component: MeetingPage,
                   },
                   {
                     path: '/deleted',
