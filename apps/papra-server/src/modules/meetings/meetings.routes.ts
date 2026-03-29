@@ -8,6 +8,7 @@ import { organizationIdSchema } from '../organizations/organization.schemas';
 import { ensureUserIsInOrganization } from '../organizations/organizations.usecases';
 import { createError } from '../shared/errors/errors';
 import { validateJsonBody, validateParams, validateQuery } from '../shared/validation/validation';
+import { deleteMeetingArtifacts } from './meetings-artifacts.storage';
 import { createMeetingsRepository } from './meetings.repository';
 import { createMeetingBodySchema, ingestMeetingBodySchema, meetingIdSchema, updateMeetingBodySchema } from './meetings.schemas';
 
@@ -222,7 +223,7 @@ function setupUpdateMeetingRoute({ app, db }: RouteDefinitionContext) {
   );
 }
 
-function setupDeleteMeetingRoute({ app, db }: RouteDefinitionContext) {
+function setupDeleteMeetingRoute({ app, db, config }: RouteDefinitionContext) {
   app.delete(
     '/api/organizations/:organizationId/meetings/:meetingId',
     requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.DOCUMENTS.DELETE] }),
@@ -248,6 +249,11 @@ function setupDeleteMeetingRoute({ app, db }: RouteDefinitionContext) {
           statusCode: 404,
         });
       }
+
+      await deleteMeetingArtifacts({
+        config,
+        meeting,
+      });
 
       await meetingsRepository.deleteMeeting({ organizationId, meetingId });
 
