@@ -24,6 +24,7 @@ import { meetingsStatusMigration } from './list/0021-meetings-status.migration';
 import { meetingsTagsMigration } from './list/0022-meetings-tags.migration';
 import { documentFoldersMigration } from './list/0023-document-folders.migration';
 import { documentVersionsMigration } from './list/0024-document-versions.migration';
+import { meetingsAudioDurationMigration } from './list/0025-meetings-audio-duration.migration';
 
 export const migrations: Migration[] = [
   initialSchemaSetupMigration,
@@ -50,4 +51,5 @@ export const migrations: Migration[] = [
   meetingsTagsMigration,
   documentFoldersMigration,
   documentVersionsMigration,
+  meetingsAudioDurationMigration,
 ];

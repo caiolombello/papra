@@ -19,6 +19,7 @@ export const createMeetingBodySchema = z.object({
   language: z.string().trim().max(32).optional(),
   context: z.string().trim().max(64).optional(),
   summary: z.string().trim().max(10000).optional(),
+  audioDurationSeconds: z.coerce.number().min(0).optional(),
   startedAt: z.coerce.date().optional(),
   endedAt: z.coerce.date().optional(),
   chunks: z.array(meetingChunkForCreationSchema).min(1).max(10000),

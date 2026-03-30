@@ -52,6 +52,7 @@ async function createMeeting({
       language: meeting.language,
       context: meeting.context,
       summary: meeting.summary,
+      audioDurationSeconds: meeting.audioDurationSeconds,
       startedAt: meeting.startedAt,
       endedAt: meeting.endedAt,
       ...(status !== undefined && { status }),
@@ -194,6 +195,7 @@ async function updateMeeting({
       language: meeting.language,
       context: meeting.context,
       summary: meeting.summary,
+      audioDurationSeconds: meeting.audioDurationSeconds,
       startedAt: meeting.startedAt,
       endedAt: meeting.endedAt,
       ...(meeting.status !== undefined && { status: meeting.status }),
@@ -299,6 +301,7 @@ async function upsertMeetingFromIngestion({
       language: meeting.language,
       context: meeting.context,
       summary: meeting.summary,
+      audioDurationSeconds: meeting.audioDurationSeconds,
       startedAt: meeting.startedAt,
       endedAt: meeting.endedAt,
       status: MEETING_STATUSES.COMPLETED,
@@ -335,7 +338,19 @@ async function getMeetingStats({
     completed: sql<number>`SUM(CASE WHEN ${meetingsTable.status} = 'completed' THEN 1 ELSE 0 END)`,
     processing: sql<number>`SUM(CASE WHEN ${meetingsTable.status} IN ('processing', 'uploading') THEN 1 ELSE 0 END)`,
     failed: sql<number>`SUM(CASE WHEN ${meetingsTable.status} = 'failed' THEN 1 ELSE 0 END)`,
+    totalDurationSeconds: sql<number>`COALESCE(SUM(${meetingsTable.audioDurationSeconds}), 0)`,
   }).from(meetingsTable).where(eq(meetingsTable.organizationId, organizationId));
+
+  const totalDurationSeconds = result?.totalDurationSeconds ?? 0;
+  const totalDurationMinutes = totalDurationSeconds / 60;
+
+  // Cost estimates (USD):
+  // gpt-4o-transcribe: ~$0.006/min
+  // gpt-5.4-mini (refinement + summary): ~$0.0003/1K tokens, ~2K tokens per meeting ≈ $0.0006/meeting
+  // pyannote diarization: free (local CPU)
+  const transcriptionCostUsd = totalDurationMinutes * 0.006;
+  const llmCostUsd = (result?.completed ?? 0) * 0.001;
+  const estimatedTotalCostUsd = transcriptionCostUsd + llmCostUsd;
 
   return {
     stats: {
@@ -343,6 +358,9 @@ async function getMeetingStats({
       completed: result?.completed ?? 0,
       processing: result?.processing ?? 0,
       failed: result?.failed ?? 0,
+      totalDurationSeconds,
+      totalDurationMinutes: Math.round(totalDurationMinutes),
+      estimatedCostUsd: Math.round(estimatedTotalCostUsd * 100) / 100,
     },
   };
 }

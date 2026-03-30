@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { organizationsTable } from '../organizations/organizations.table';
 import { createPrimaryKeyField, createTimestampColumns } from '../shared/db/columns.helpers';
 import { usersTable } from '../users/users.table';
@@ -20,6 +20,7 @@ export const meetingsTable = sqliteTable('meetings', {
   context: text('context'),
   summary: text('summary'),
   status: text('status').notNull().default('completed'),
+  audioDurationSeconds: real('audio_duration_seconds'),
   startedAt: integer('started_at', { mode: 'timestamp_ms' }),
   endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
 }, table => [

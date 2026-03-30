@@ -135,6 +135,19 @@ export const OrganizationUsagePage: Component = () => {
                             <div class="text-xs text-muted-foreground mt-1">Failed</div>
                           </div>
                         </div>
+
+                        <Separator />
+
+                        <div class="flex gap-6">
+                          <div class="flex-1 text-center">
+                            <div class="text-2xl font-semibold">{getStats().stats.totalDurationMinutes}</div>
+                            <div class="text-xs text-muted-foreground mt-1">Minutes transcribed</div>
+                          </div>
+                          <div class="flex-1 text-center">
+                            <div class="text-2xl font-semibold">${getStats().stats.estimatedCostUsd.toFixed(2)}</div>
+                            <div class="text-xs text-muted-foreground mt-1">Estimated cost (USD)</div>
+                          </div>
+                        </div>
                       </CardContent>
                     </Card>
                   </>

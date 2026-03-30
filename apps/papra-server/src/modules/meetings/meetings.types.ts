@@ -15,6 +15,7 @@ export type MeetingForCreation = {
   language?: string;
   context?: string;
   summary?: string;
+  audioDurationSeconds?: number;
   startedAt?: Date;
   endedAt?: Date;
   chunks: MeetingChunkForCreation[];
@@ -34,6 +35,7 @@ export type MeetingForUpdate = {
   context?: string;
   summary?: string;
   status?: string;
+  audioDurationSeconds?: number;
   startedAt?: Date;
   endedAt?: Date;
 };

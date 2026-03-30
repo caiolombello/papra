@@ -210,6 +210,9 @@ export async function fetchMeetingStats({ organizationId }: { organizationId: st
       completed: number;
       processing: number;
       failed: number;
+      totalDurationSeconds: number;
+      totalDurationMinutes: number;
+      estimatedCostUsd: number;
     };
   }>({
     method: 'GET',
