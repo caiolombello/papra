@@ -426,9 +426,6 @@ function setupRetranscribeMeetingRoute({ app, db, config }: RouteDefinitionConte
         });
       }
 
-      // Set status to processing so the UI shows it
-      await meetingsRepository.updateMeetingStatus({ meetingId, organizationId, status: MEETING_STATUSES.PROCESSING });
-
       // Re-trigger the transcription pipeline by copying the S3 object in-place
       // This fires the S3 event notification → SQS → worker
       const bucketName = process.env.MEETINGS_SOURCE_STORAGE_BUCKET_NAME;
@@ -451,6 +448,9 @@ function setupRetranscribeMeetingRoute({ app, db, config }: RouteDefinitionConte
           MetadataDirective: 'REPLACE',
           Metadata: { retranscribe: 'true', meetingId },
         }));
+
+        // Only set processing after successful S3 copy
+        await meetingsRepository.updateMeetingStatus({ meetingId, organizationId, status: MEETING_STATUSES.PROCESSING });
       }
 
       return context.json({ message: 'Re-transcription scheduled', meetingId }, 202);
