@@ -73,7 +73,7 @@ jobs:
               'docker pull ${IMAGE}',
               'docker stop papra || true',
               'docker rm papra || true',
-              'docker run -d --name papra --restart unless-stopped --env-file /opt/papra/.env -p 1221:1221 -v /opt/papra/data:/app/app-data ${IMAGE}',
+              'docker run -d --name papra --restart unless-stopped --env-file /opt/papra/.env -p 1221:1221 -v /opt/papra/app-data:/app/app-data ${IMAGE}',
               'docker image prune -f'
             ]" \
             --timeout-seconds 300 \
