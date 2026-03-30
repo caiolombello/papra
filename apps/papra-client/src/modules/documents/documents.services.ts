@@ -84,6 +84,22 @@ export async function fetchOrganizationDeletedDocuments({
   };
 }
 
+export async function moveDocumentToFolder({
+  documentId,
+  organizationId,
+  folderId,
+}: {
+  documentId: string;
+  organizationId: string;
+  folderId: string | null;
+}) {
+  await apiClient({
+    method: 'PATCH',
+    path: `/api/organizations/${organizationId}/documents/${documentId}`,
+    body: { folderId },
+  });
+}
+
 export async function replaceDocumentFile({
   documentId,
   organizationId,

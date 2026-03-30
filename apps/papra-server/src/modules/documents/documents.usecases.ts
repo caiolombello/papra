@@ -729,6 +729,7 @@ export async function updateDocument({
     name?: string;
     content?: string;
     documentDate?: Date | null;
+    folderId?: string | null;
   };
 }) {
   // It throws if the document does not exist

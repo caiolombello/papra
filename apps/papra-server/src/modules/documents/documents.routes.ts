@@ -459,8 +459,9 @@ function setupUpdateDocumentRoute({ app, db, eventServices }: RouteDefinitionCon
       name: z.string().min(1).max(255).optional(),
       content: z.string().optional(),
       documentDate: z.coerce.date().nullable().optional(),
-    }).refine(data => data.name !== undefined || data.content !== undefined || data.documentDate !== undefined, {
-      message: 'At least one of \'name\', \'content\', or \'documentDate\' must be provided',
+      folderId: z.string().nullable().optional(),
+    }).refine(data => data.name !== undefined || data.content !== undefined || data.documentDate !== undefined || data.folderId !== undefined, {
+      message: 'At least one of \'name\', \'content\', \'documentDate\', or \'folderId\' must be provided',
     })),
     async (context) => {
       const { userId } = getUser({ context });
