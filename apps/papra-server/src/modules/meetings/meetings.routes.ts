@@ -28,12 +28,12 @@ export function registerMeetingsRoutes(context: RouteDefinitionContext) {
   setupCreateMeetingRoute(context);
   setupListMeetingsRoute(context);
   setupSearchMeetingsRoute(context);
+  setupMeetingStatsRoute(context);
   setupGetMeetingRoute(context);
   setupUpdateMeetingRoute(context);
   setupDeleteMeetingRoute(context);
   setupMeetingPlaybackRoute(context);
   setupRetranscribeMeetingRoute(context);
-  setupMeetingStatsRoute(context);
   setupAddTagToMeetingRoute(context);
   setupRemoveTagFromMeetingRoute(context);
 }

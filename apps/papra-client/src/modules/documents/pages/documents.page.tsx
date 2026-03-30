@@ -2,7 +2,7 @@ import type { Component } from 'solid-js';
 import { A, useParams, useSearchParams } from '@solidjs/router';
 import { createMutation, keepPreviousData, useQuery } from '@tanstack/solid-query';
 import { createSignal, For, Show, Suspense } from 'solid-js';
-import { createFolder, fetchFolder, fetchFolders } from '@/modules/document-folders/document-folders.services';
+import { createFolder, deleteFolder, fetchFolder, fetchFolders } from '@/modules/document-folders/document-folders.services';
 import { useI18n } from '@/modules/i18n/i18n.provider';
 import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
 import { createParamSynchronizedPagination } from '@/modules/shared/pagination/query-synchronized-pagination';
@@ -193,7 +193,7 @@ export const DocumentsPage: Component = () => {
                         return (
                           <button
                             class={cn(
-                              'flex items-center gap-2 px-3 py-2 rounded-lg border bg-card hover:bg-accent/30 transition-colors text-left',
+                              'group flex items-center gap-2 px-3 py-2 rounded-lg border bg-card hover:bg-accent/30 transition-colors text-left',
                               isDragOver() && 'ring-2 ring-primary bg-primary/10',
                             )}
                             onClick={() => navigateToFolder(folder.id)}
@@ -215,7 +215,17 @@ export const DocumentsPage: Component = () => {
                             }}
                           >
                             <div class={cn('size-5', isDragOver() ? 'i-tabler-folder-open text-primary' : 'i-tabler-folder text-primary')} />
-                            <span class="text-sm font-medium truncate">{folder.name}</span>
+                            <span class="text-sm font-medium truncate flex-1">{folder.name}</span>
+                            <div
+                              class="i-tabler-x size-3.5 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await deleteFolder({ organizationId: params.organizationId, folderId: folder.id });
+                                await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'folders'] });
+                                await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'documents'] });
+                                createToast({ type: 'success', message: `Folder "${folder.name}" deleted` });
+                              }}
+                            />
                           </button>
                         );
                       }}
