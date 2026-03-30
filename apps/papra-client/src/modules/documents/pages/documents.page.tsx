@@ -88,7 +88,7 @@ export const DocumentsPage: Component = () => {
   return (
     <div class="p-6 mt-4 pb-32 max-w-5xl mx-auto">
       <Suspense>
-        {(documentsQuery.data?.documents?.length ?? 0) === 0 && debouncedSearchQuery().length === 0
+        {(documentsQuery.data?.documents?.length ?? 0) === 0 && debouncedSearchQuery().length === 0 && !isInFolder() && (foldersQuery.data?.folders?.length ?? 0) === 0
           ? (
               <>
                 <h2 class="text-xl font-bold ">
