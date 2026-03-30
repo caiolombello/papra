@@ -13,6 +13,7 @@ import { validateJsonBody, validateParams, validateQuery } from '../shared/valid
 import { createTagsRepository } from '../tags/tags.repository';
 import { normalizeTagName } from '../tags/tags.repository.models';
 import { tagIdSchema } from '../tags/tags.schemas';
+import { CopyObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { MEETING_STATUSES } from './meetings.constants';
 import { deleteMeetingArtifacts } from './meetings-artifacts.storage';
 import { createMeetingPlaybackPresignedUrl, isMeetingPlaybackEnabled } from './meetings-playback.storage';
@@ -390,7 +391,7 @@ function setupMeetingPlaybackRoute({ app, db, config }: RouteDefinitionContext) 
   );
 }
 
-function setupRetranscribeMeetingRoute({ app, db, taskServices }: RouteDefinitionContext) {
+function setupRetranscribeMeetingRoute({ app, db, config }: RouteDefinitionContext) {
   app.post(
     '/api/organizations/:organizationId/meetings/:meetingId/retranscribe',
     requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.DOCUMENTS.UPDATE] }),
@@ -425,15 +426,32 @@ function setupRetranscribeMeetingRoute({ app, db, taskServices }: RouteDefinitio
         });
       }
 
-      await taskServices.scheduleJob({
-        taskName: 'transcribe-meeting',
-        data: {
-          organizationId,
-          meetingId,
-          sourceStorageKey: meeting.sourceStorageKey,
-          userId,
-        },
-      });
+      // Set status to processing so the UI shows it
+      await meetingsRepository.updateMeetingStatus({ meetingId, organizationId, status: MEETING_STATUSES.PROCESSING });
+
+      // Re-trigger the transcription pipeline by copying the S3 object in-place
+      // This fires the S3 event notification → SQS → worker
+      const bucketName = process.env.MEETINGS_SOURCE_STORAGE_BUCKET_NAME;
+      if (bucketName) {
+        const s3Config = config.documentsStorage.drivers.s3;
+        const s3Client = new S3Client({
+          region: s3Config.region,
+          endpoint: s3Config.endpoint,
+          forcePathStyle: s3Config.forcePathStyle,
+          credentials: {
+            accessKeyId: s3Config.accessKeyId,
+            secretAccessKey: s3Config.secretAccessKey,
+          },
+        });
+
+        await s3Client.send(new CopyObjectCommand({
+          Bucket: bucketName,
+          CopySource: `${bucketName}/${meeting.sourceStorageKey}`,
+          Key: meeting.sourceStorageKey,
+          MetadataDirective: 'REPLACE',
+          Metadata: { retranscribe: 'true', meetingId },
+        }));
+      }
 
       return context.json({ message: 'Re-transcription scheduled', meetingId }, 202);
     },
