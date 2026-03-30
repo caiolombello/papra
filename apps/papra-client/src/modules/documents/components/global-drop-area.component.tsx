@@ -5,7 +5,12 @@ import { cn } from '@/modules/shared/style/cn';
 export const GlobalDropArea: Component<{ onFilesDrop?: (args: { files: File[] }) => void }> = (props) => {
   const [isDragging, setIsDragging] = createSignal(false);
 
+  const isInternalDrag = (e: DragEvent) => e.dataTransfer?.types.includes('application/x-papra-document-id');
+
   const handleDragOver = (e: DragEvent) => {
+    if (isInternalDrag(e)) {
+      return;
+    }
     e.preventDefault();
     setIsDragging(true);
   };
@@ -17,6 +22,9 @@ export const GlobalDropArea: Component<{ onFilesDrop?: (args: { files: File[] })
   };
 
   const handleDrop = (e: DragEvent) => {
+    if (isInternalDrag(e)) {
+      return;
+    }
     e.preventDefault();
     setIsDragging(false);
     const files = Array.from(e.dataTransfer?.files ?? []);

@@ -9,7 +9,12 @@ export const DocumentUploadArea: Component = () => {
 
   const { promptImport, uploadDocuments } = useDocumentUpload();
 
+  const isInternalDrag = (event: DragEvent) => event.dataTransfer?.types.includes('application/x-papra-document-id');
+
   const handleDragOver = (event: DragEvent) => {
+    if (isInternalDrag(event)) {
+      return;
+    }
     event.preventDefault();
     setIsDragging(true);
   };
@@ -19,6 +24,9 @@ export const DocumentUploadArea: Component = () => {
   };
 
   const handleDrop = async (event: DragEvent) => {
+    if (isInternalDrag(event)) {
+      return;
+    }
     event.preventDefault();
     setIsDragging(false);
     if (!event.dataTransfer?.files) {
