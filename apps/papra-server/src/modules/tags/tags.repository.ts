@@ -6,9 +6,9 @@ import { get } from 'lodash-es';
 import { documentsTable } from '../documents/documents.table';
 import { isUniqueConstraintError } from '../shared/db/constraints.models';
 import { isDefined, omitUndefined } from '../shared/utils';
-import { createDocumentAlreadyHasTagError, createTagAlreadyExistsError } from './tags.errors';
+import { createDocumentAlreadyHasTagError, createMeetingAlreadyHasTagError, createTagAlreadyExistsError } from './tags.errors';
 import { normalizeTagName } from './tags.repository.models';
-import { documentsTagsTable, tagsTable } from './tags.table';
+import { documentsTagsTable, meetingsTagsTable, tagsTable } from './tags.table';
 
 export type TagsRepository = ReturnType<typeof createTagsRepository>;
 
@@ -26,6 +26,10 @@ export function createTagsRepository({ db }: { db: Database }) {
       addTagsToDocument,
       removeTagFromDocument,
       removeAllTagsFromDocument,
+      getTagsByMeetingIds,
+      addTagToMeeting,
+      removeTagFromMeeting,
+      getTagByNormalizedName,
     },
     { db },
   );
@@ -179,4 +183,62 @@ async function removeTagFromDocument({ tagId, documentId, db }: { tagId: string;
 
 async function removeAllTagsFromDocument({ documentId, db }: { documentId: string; db: Database }) {
   await db.delete(documentsTagsTable).where(eq(documentsTagsTable.documentId, documentId));
+}
+
+async function getTagsByMeetingIds({ meetingIds, db }: { meetingIds: string[]; db: Database }): Promise<{ tagsByMeetingId: Record<string, Tag[]> }> {
+  if (meetingIds.length === 0) {
+    return { tagsByMeetingId: {} };
+  }
+
+  const rows = await db
+    .select({
+      meetingId: meetingsTagsTable.meetingId,
+      ...getTableColumns(tagsTable),
+    })
+    .from(meetingsTagsTable)
+    .innerJoin(tagsTable, eq(tagsTable.id, meetingsTagsTable.tagId))
+    .where(inArray(meetingsTagsTable.meetingId, meetingIds));
+
+  const tagsByMeetingId: Record<string, Tag[]> = {};
+
+  for (const { meetingId, ...tag } of rows) {
+    (tagsByMeetingId[meetingId] ??= []).push(tag);
+  }
+
+  return { tagsByMeetingId };
+}
+
+async function addTagToMeeting({ tagId, meetingId, db }: { tagId: string; meetingId: string; db: Database }) {
+  const [_, error] = await safely(db.insert(meetingsTagsTable).values({ tagId, meetingId }));
+
+  if (error && get(error, 'code') === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+    throw createMeetingAlreadyHasTagError();
+  }
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function removeTagFromMeeting({ tagId, meetingId, db }: { tagId: string; meetingId: string; db: Database }) {
+  await db.delete(meetingsTagsTable).where(
+    and(
+      eq(meetingsTagsTable.tagId, tagId),
+      eq(meetingsTagsTable.meetingId, meetingId),
+    ),
+  );
+}
+
+async function getTagByNormalizedName({ organizationId, normalizedName, db }: { organizationId: string; normalizedName: string; db: Database }) {
+  const [tag] = await db
+    .select()
+    .from(tagsTable)
+    .where(
+      and(
+        eq(tagsTable.organizationId, organizationId),
+        eq(tagsTable.normalizedName, normalizedName),
+      ),
+    );
+
+  return { tag };
 }

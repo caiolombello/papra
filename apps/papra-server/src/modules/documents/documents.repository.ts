@@ -1,7 +1,7 @@
 import type { Database } from '../app/database/database.types';
 import type { DbInsertableDocument } from './documents.types';
 import { injectArguments, safely } from '@corentinth/chisels';
-import { and, count, desc, eq, inArray, lt, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { createIterator } from '../app/database/database.usecases';
 import { createOrganizationNotFoundError } from '../organizations/organizations.errors';
 import { subDays } from '../shared/date';
@@ -34,6 +34,8 @@ export function createDocumentsRepository({ db }: { db: Database }) {
       updateDocument,
       getGlobalDocumentsStats,
       getDocumentsByIds,
+      getDocumentsByFolderId,
+      updateDocumentFile,
     },
     { db },
   );
@@ -369,4 +371,84 @@ async function getGlobalDocumentsStats({ db }: { db: Database }) {
     totalDocumentsCount,
     totalDocumentsSize: Number(totalDocumentsSize ?? 0),
   };
+}
+
+async function getDocumentsByFolderId({
+  organizationId,
+  folderId,
+  pageIndex,
+  pageSize,
+  db,
+}: {
+  organizationId: string;
+  folderId: string | null;
+  pageIndex: number;
+  pageSize: number;
+  db: Database;
+}) {
+  const conditions = [
+    eq(documentsTable.organizationId, organizationId),
+    eq(documentsTable.isDeleted, false),
+    folderId === null
+      ? isNull(documentsTable.folderId)
+      : eq(documentsTable.folderId, folderId),
+  ];
+
+  const [documents, countResult] = await Promise.all([
+    db.select()
+      .from(documentsTable)
+      .where(and(...conditions))
+      .orderBy(desc(documentsTable.createdAt))
+      .limit(pageSize)
+      .offset(pageIndex * pageSize),
+    db.select({ count: sql<number>`COUNT(*)` })
+      .from(documentsTable)
+      .where(and(...conditions)),
+  ]);
+
+  return {
+    documents,
+    documentsCount: countResult[0]?.count ?? 0,
+  };
+}
+
+async function updateDocumentFile({
+  documentId,
+  organizationId,
+  originalName,
+  originalSize,
+  originalStorageKey,
+  originalSha256Hash,
+  mimeType,
+  versionNumber,
+  db,
+}: {
+  documentId: string;
+  organizationId: string;
+  originalName: string;
+  originalSize: number;
+  originalStorageKey: string;
+  originalSha256Hash: string;
+  mimeType: string;
+  versionNumber: number;
+  db: Database;
+}) {
+  const [document] = await db
+    .update(documentsTable)
+    .set({
+      originalName,
+      originalSize,
+      originalStorageKey,
+      originalSha256Hash,
+      mimeType,
+      versionNumber,
+      updatedAt: new Date(),
+    })
+    .where(and(
+      eq(documentsTable.id, documentId),
+      eq(documentsTable.organizationId, organizationId),
+    ))
+    .returning();
+
+  return { document };
 }

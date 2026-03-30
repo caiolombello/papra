@@ -29,6 +29,11 @@ export const OrganizationSettingsLayout: ParentComponent = (props) => {
       href: `/organizations/${params.organizationId}/settings/webhooks`,
       icon: 'i-tabler-webhook',
     },
+    {
+      label: t('layout.menu.pdf-password-rules'),
+      href: `/organizations/${params.organizationId}/settings/pdf-password-rules`,
+      icon: 'i-tabler-lock',
+    },
   ];
 
   return (

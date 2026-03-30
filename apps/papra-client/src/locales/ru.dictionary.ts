@@ -788,6 +788,7 @@ export const translations: Partial<TranslationsDictionary> = {
   'layout.menu.usage': 'Использование',
   'layout.menu.intake-emails': 'Email для импорта',
   'layout.menu.webhooks': 'Webhooks',
+  'layout.menu.pdf-password-rules': 'Правила паролей PDF',
   'layout.menu.members': 'Участники',
   'layout.menu.invitations': 'Приглашения',
   'layout.menu.admin': 'Админка',

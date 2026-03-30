@@ -6,11 +6,13 @@ import { A, useNavigate, useParams, useSearchParams } from '@solidjs/router';
 import { useInfiniteQuery, useQuery } from '@tanstack/solid-query';
 import { createEffect, createSignal, For, Match, Show, Suspense, Switch } from 'solid-js';
 import { useConfig } from '@/modules/config/config.provider';
+import { fetchDocumentVersions } from '@/modules/document-versions/document-versions.services';
 import { DocumentCustomPropertiesPanel } from '@/modules/custom-properties/components/document-custom-properties-panel.component';
 import { fetchCustomPropertyDefinitions } from '@/modules/custom-properties/custom-properties.services';
 import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
 import { useI18n } from '@/modules/i18n/i18n.provider';
 import { downloadFile } from '@/modules/shared/files/download';
+import { queryClient } from '@/modules/shared/query/query-client';
 import { DocumentTagsList } from '@/modules/tags/components/tag-list.component';
 import { TagLink } from '@/modules/tags/components/tag.component';
 import { Alert } from '@/modules/ui/components/alert';
@@ -18,11 +20,13 @@ import { Button } from '@/modules/ui/components/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/modules/ui/components/dropdown-menu';
 import { Separator } from '@/modules/ui/components/separator';
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from '@/modules/ui/components/tabs';
+import { promptUploadFiles } from '@/modules/shared/files/upload';
 import { DocumentContentEditionPanel } from '../components/document-content-edition-panel.component';
 import { DocumentDatePicker } from '../components/document-date-picker.component';
 import { DocumentPreview } from '../components/document-preview.component';
 import { DocumentOpenWithDropdownItems } from '../components/open-with.component';
 import { useRenameDocumentDialog } from '../components/rename-document-button.component';
+import { replaceDocumentFile } from '../documents.services';
 import { getDaysBeforePermanentDeletion, getDocumentActivityIcon, getDocumentOpenWithApps } from '../document.models';
 import { useDeleteDocument, useRestoreDocument } from '../documents.composables';
 import { fetchDocument, fetchDocumentActivities, fetchDocumentFile } from '../documents.services';
@@ -240,6 +244,24 @@ export const DocumentPage: Component = () => {
                       {t('documents.actions.download')}
                     </Button>
 
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        const { files } = await promptUploadFiles({});
+                        if (files.length === 0) return;
+                        await replaceDocumentFile({
+                          documentId: getDocument().id,
+                          organizationId: params.organizationId,
+                          file: files[0],
+                        });
+                        await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'documents', getDocument().id] });
+                      }}
+                    >
+                      <div class="i-tabler-replace size-4 mr-2" />
+                      Replace file
+                    </Button>
+
                     <DocumentOpenWithDropdown document={getDocument()} organizationId={params.organizationId} />
 
                     {getDocument().isDeleted
@@ -416,7 +438,55 @@ export const DocumentPage: Component = () => {
             )}
           </Show>
         </div>
+
+        <Show when={documentQuery.data?.document}>
+          {getDocument => (
+            <DocumentVersionHistory
+              organizationId={params.organizationId}
+              documentId={getDocument().id}
+              currentVersion={getDocument().versionNumber ?? 1}
+            />
+          )}
+        </Show>
       </Suspense>
     </div>
+  );
+};
+
+const DocumentVersionHistory: Component<{
+  organizationId: string;
+  documentId: string;
+  currentVersion: number;
+}> = (props) => {
+  const versionsQuery = useQuery(() => ({
+    queryKey: ['organizations', props.organizationId, 'documents', props.documentId, 'versions'],
+    queryFn: () => fetchDocumentVersions({ organizationId: props.organizationId, documentId: props.documentId }),
+  }));
+
+  return (
+    <Show when={versionsQuery.data?.versions && versionsQuery.data.versions.length > 0}>
+      <div class="mt-6">
+        <h3 class="text-base font-semibold mb-3 flex items-center gap-2">
+          <div class="i-tabler-history size-5" />
+          Version History
+        </h3>
+        <div class="border rounded-lg divide-y">
+          <div class="px-4 py-3 flex items-center gap-3 text-sm bg-primary/5">
+            <span class="font-mono text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">v{props.currentVersion}</span>
+            <span class="font-medium">Current version</span>
+          </div>
+          <For each={versionsQuery.data?.versions ?? []}>
+            {version => (
+              <div class="px-4 py-3 flex items-center gap-3 text-sm">
+                <span class="font-mono text-xs bg-muted px-2 py-0.5 rounded">v{version.versionNumber}</span>
+                <span class="flex-1 truncate text-muted-foreground">{version.originalName}</span>
+                <span class="text-muted-foreground text-xs">{formatBytes({ bytes: version.originalSize, base: 1000 })}</span>
+                <RelativeTime class="text-muted-foreground text-xs" date={version.createdAt} />
+              </div>
+            )}
+          </For>
+        </div>
+      </div>
+    </Show>
   );
 };

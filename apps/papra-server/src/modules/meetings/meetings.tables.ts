@@ -19,11 +19,13 @@ export const meetingsTable = sqliteTable('meetings', {
   language: text('language'),
   context: text('context'),
   summary: text('summary'),
+  status: text('status').notNull().default('completed'),
   startedAt: integer('started_at', { mode: 'timestamp_ms' }),
   endedAt: integer('ended_at', { mode: 'timestamp_ms' }),
 }, table => [
   index('meetings_organization_id_created_at_index').on(table.organizationId, table.createdAt),
   index('meetings_organization_id_started_at_index').on(table.organizationId, table.startedAt),
+  index('meetings_organization_id_status_index').on(table.organizationId, table.status),
   uniqueIndex('meetings_organization_id_source_storage_key_unique').on(table.organizationId, table.sourceStorageKey),
 ]);
 

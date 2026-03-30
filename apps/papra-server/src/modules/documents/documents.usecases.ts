@@ -17,13 +17,15 @@ import type { Document } from './documents.types';
 import type { DocumentStorageService } from './storage/documents.storage.services';
 import type { EncryptionContext } from './storage/drivers/drivers.models';
 import type { StoragePatternConfig } from './storage/patterns/storage-pattern.types';
-import { PassThrough } from 'node:stream';
+import { PassThrough, Readable as NodeReadable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { safely } from '@corentinth/chisels';
 import pLimit from 'p-limit';
 import { buildCustomPropertiesArray } from '../custom-properties/custom-properties.models';
 import { createOrganizationDocumentStorageLimitReachedError } from '../organizations/organizations.errors';
 import { getOrganizationStorageLimits } from '../organizations/organizations.usecases';
+import { createPdfPasswordRulesRepository } from '../pdf-password-rules/pdf-password-rules.repository';
+import { findMatchingPasswords } from '../pdf-password-rules/pdf-password-rules.usecases';
 import { createPlansRepository } from '../plans/plans.repository';
 import { createError } from '../shared/errors/errors';
 import { createLogger } from '../shared/logger/logger';
@@ -41,6 +43,7 @@ import { createDocumentAlreadyExistsError, createDocumentNotDeletedError, create
 import { formatDocumentForApi, generateDocumentId as generateDocumentIdImpl } from './documents.models';
 import { createDocumentsRepository } from './documents.repository';
 import { extractDocumentText } from './documents.services';
+import { isPdfEncrypted, tryUnlockPdf } from './pdf-unlock';
 import { createStorageKey } from './storage/document-storage.usecases';
 
 type DocumentStorageContext = {
@@ -53,6 +56,7 @@ export async function createDocument({
   mimeType,
   userId,
   organizationId,
+  emailSubject,
   ocrLanguages = [],
   isContentExtractionEnabled = true,
   storagePatternConfig,
@@ -67,6 +71,7 @@ export async function createDocument({
   documentActivityRepository,
   eventServices,
   taskServices,
+  db,
   logger = createLogger({ namespace: 'documents:usecases' }),
 }: {
   fileStream: Readable;
@@ -74,6 +79,7 @@ export async function createDocument({
   mimeType: string;
   userId?: string;
   organizationId: string;
+  emailSubject?: string;
   ocrLanguages?: string[];
   isContentExtractionEnabled?: boolean;
   storagePatternConfig: StoragePatternConfig;
@@ -88,6 +94,7 @@ export async function createDocument({
   documentActivityRepository: DocumentActivityRepository;
   eventServices: EventServices;
   taskServices: TaskServices;
+  db: Database;
   logger?: Logger;
 }) {
   const { availableDocumentStorageBytes, maxFileSize } = await getOrganizationStorageLimits({ organizationId, plansRepository, subscriptionsRepository, documentsRepository });
@@ -100,6 +107,39 @@ export async function createDocument({
     documentsStorageService,
     storagePatternConfig,
   });
+
+  // --- PDF unlock logic ---
+  // If this document came from an intake email (emailSubject is set) and is a PDF,
+  // try to unlock it with passwords from the org's pdf-password-rules before streaming.
+  let resolvedFileStream: Readable = fileStream;
+
+  if (mimeType === 'application/pdf' && emailSubject) {
+    const chunks: Buffer[] = [];
+
+    for await (const chunk of fileStream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+    }
+
+    const pdfBuffer = Buffer.concat(chunks);
+    const encrypted = await isPdfEncrypted(pdfBuffer);
+
+    if (encrypted) {
+      logger.info({ organizationId, emailSubject }, 'PDF is password-protected, attempting unlock');
+
+      const pdfPasswordRulesRepository = createPdfPasswordRulesRepository({ db });
+      const passwords = await findMatchingPasswords({ organizationId, subject: emailSubject, pdfPasswordRulesRepository });
+      const { unlocked, data } = await tryUnlockPdf(pdfBuffer, passwords);
+
+      if (unlocked) {
+        logger.info({ organizationId }, 'PDF successfully unlocked for ingest');
+      } else {
+        logger.warn({ organizationId, passwordCount: passwords.length }, 'Could not unlock PDF — storing original encrypted file');
+      }
+
+      resolvedFileStream = NodeReadable.from(data);
+    }
+  }
+  // --- end PDF unlock logic ---
 
   const { tap: hashStream, getHash } = createSha256HashTransformer();
 
@@ -121,7 +161,7 @@ export async function createDocument({
   const outputStream = new PassThrough();
 
   const streamProcessingPromise = pipeline(
-    fileStream,
+    resolvedFileStream,
     hashStream,
     byteCountStream,
     outputStream,
@@ -186,7 +226,7 @@ export async function createDocument({
 }
 
 export type CreateDocumentUsecase = Awaited<ReturnType<typeof createDocumentCreationUsecase>>;
-export type DocumentUsecaseDependencies = Omit<Parameters<typeof createDocument>[0], 'fileStream' | 'fileName' | 'mimeType' | 'userId' | 'organizationId'>;
+export type DocumentUsecaseDependencies = Omit<Parameters<typeof createDocument>[0], 'fileStream' | 'fileName' | 'mimeType' | 'userId' | 'organizationId' | 'emailSubject'>;
 
 export function createDocumentCreationUsecase({
   db,
@@ -224,7 +264,8 @@ export function createDocumentCreationUsecase({
     mimeType: string;
     userId?: string;
     organizationId: string;
-  }) => createDocument({ taskServices, documentsStorageService, eventServices, ...args, ...deps });
+    emailSubject?: string;
+  }) => createDocument({ taskServices, documentsStorageService, eventServices, db, ...args, ...deps });
 }
 
 async function handleExistingDocument({

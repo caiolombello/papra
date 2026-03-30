@@ -50,12 +50,14 @@ export async function processIntakeEmailIngestion({
   fromAddress,
   recipientsAddresses,
   attachments,
+  subject = '',
   intakeEmailsRepository,
   createDocument,
 }: {
   fromAddress: string;
   recipientsAddresses: string[];
   attachments: File[];
+  subject?: string;
   intakeEmailsRepository: IntakeEmailsRepository;
   createDocument: CreateDocumentUsecase;
 }) {
@@ -65,6 +67,7 @@ export async function processIntakeEmailIngestion({
         fromAddress,
         recipientAddress,
         attachments,
+        subject,
         intakeEmailsRepository,
         createDocument,
       }),
@@ -76,6 +79,7 @@ export async function ingestEmailForRecipient({
   fromAddress,
   recipientAddress,
   attachments,
+  subject = '',
   intakeEmailsRepository,
   logger = createLogger({ namespace: 'intake-emails.ingest' }),
   createDocument,
@@ -83,6 +87,7 @@ export async function ingestEmailForRecipient({
   fromAddress: string;
   recipientAddress: string;
   attachments: File[];
+  subject?: string;
   intakeEmailsRepository: IntakeEmailsRepository;
   logger?: Logger;
   createDocument: CreateDocumentUsecase;
@@ -122,6 +127,7 @@ export async function ingestEmailForRecipient({
       fileName: file.name,
       mimeType,
       organizationId: intakeEmail.organizationId,
+      emailSubject: subject,
     }));
 
     if (error) {

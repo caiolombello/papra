@@ -6,6 +6,12 @@ export const createDocumentAlreadyHasTagError = createErrorFactory({
   statusCode: 400,
 });
 
+export const createMeetingAlreadyHasTagError = createErrorFactory({
+  message: 'Meeting already has tag',
+  code: 'meetings.already_has_tag',
+  statusCode: 400,
+});
+
 export const createTagAlreadyExistsError = createErrorFactory({
   message: 'Tag already exists',
   code: 'tags.already_exists',

@@ -1,7 +1,7 @@
 import type { Component } from 'solid-js';
 import { useNavigate, useParams } from '@solidjs/router';
 import { useMutation, useQuery } from '@tanstack/solid-query';
-import { For, Show, Suspense } from 'solid-js';
+import { createSignal, For, Show, Suspense } from 'solid-js';
 import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
 import { useI18n } from '@/modules/i18n/i18n.provider';
 import { useConfirmModal } from '@/modules/shared/confirm';
@@ -11,7 +11,8 @@ import { Badge } from '@/modules/ui/components/badge';
 import { Button } from '@/modules/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
 import { createToast } from '@/modules/ui/components/sonner';
-import { deleteMeeting, fetchMeeting } from '../meetings.services';
+import { Tag as TagComponent } from '@/modules/tags/components/tag.component';
+import { addTagToMeeting, deleteMeeting, fetchMeeting, fetchMeetingPlaybackUrl, removeTagFromMeeting, retranscribeMeeting } from '../meetings.services';
 
 function formatDurationFromMs(startedAtMs?: number | null, endedAtMs?: number | null) {
   if (startedAtMs == null && endedAtMs == null) {
@@ -39,6 +40,77 @@ function formatDurationFromMs(startedAtMs?: number | null, endedAtMs?: number | 
   return start || end;
 }
 
+const AudioPlayer: Component<{ organizationId: string; meetingId: string; sourceStorageKey?: string }> = (props) => {
+  let audioRef: HTMLAudioElement | undefined;
+  const [getAudioUrl, setAudioUrl] = createSignal<string | null>(null);
+  const [getLoadError, setLoadError] = createSignal(false);
+
+  const playbackQuery = useQuery(() => ({
+    queryKey: ['organizations', props.organizationId, 'meetings', props.meetingId, 'playback-url'],
+    queryFn: () => fetchMeetingPlaybackUrl({ organizationId: props.organizationId, meetingId: props.meetingId }),
+    enabled: Boolean(props.sourceStorageKey),
+    retry: false,
+    staleTime: 50 * 60 * 1000, // 50 min (URL expires in 60 min)
+  }));
+
+  // Watch query data changes and update audio URL
+  const audioUrl = () => playbackQuery.data?.playbackUrl ?? null;
+
+  const seekTo = (timeMs: number) => {
+    if (audioRef) {
+      audioRef.currentTime = timeMs / 1000;
+      audioRef.play();
+    }
+  };
+
+  // Expose seekTo for parent use via window (simple approach for chunk click)
+  if (typeof window !== 'undefined') {
+    (window as any).__papra_audio_seek = seekTo;
+  }
+
+  return (
+    <Show when={props.sourceStorageKey}>
+      <Card>
+        <CardHeader class="pb-3">
+          <CardTitle class="flex items-center gap-2 text-base">
+            <div class="i-tabler-player-play size-5" />
+            Audio Player
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Show
+            when={!playbackQuery.isError && !getLoadError()}
+            fallback={
+              <p class="text-sm text-muted-foreground">Audio playback not available (S3 source bucket not configured)</p>
+            }
+          >
+            <Show
+              when={audioUrl()}
+              fallback={
+                <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div class="i-tabler-loader-2 size-4 animate-spin" />
+                  Loading audio…
+                </div>
+              }
+            >
+              {url => (
+                <audio
+                  ref={audioRef}
+                  src={url()}
+                  controls
+                  class="w-full"
+                  onError={() => setLoadError(true)}
+                  preload="metadata"
+                />
+              )}
+            </Show>
+          </Show>
+        </CardContent>
+      </Card>
+    </Show>
+  );
+};
+
 export const MeetingPage: Component = () => {
   const params = useParams();
   const navigate = useNavigate();
@@ -57,6 +129,16 @@ export const MeetingPage: Component = () => {
       await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'meetings'] });
       createToast({ type: 'success', message: t('meetings.delete.success') });
       navigate(`/organizations/${params.organizationId}/meetings`);
+    },
+    onError: (error) => {
+      createToast({ type: 'error', message: getErrorMessage({ error }) });
+    },
+  }));
+
+  const retranscribeMutation = useMutation(() => ({
+    mutationFn: () => retranscribeMeeting({ organizationId: params.organizationId, meetingId: params.meetingId }),
+    onSuccess: () => {
+      createToast({ type: 'success', message: 'Re-transcription scheduled. The meeting will be updated once processing completes.' });
     },
     onError: (error) => {
       createToast({ type: 'error', message: getErrorMessage({ error }) });
@@ -83,6 +165,26 @@ export const MeetingPage: Component = () => {
     await deleteMeetingMutation.mutateAsync();
   };
 
+  const handleRetranscribe = async () => {
+    const isConfirmed = await confirm({
+      title: 'Re-transcribe meeting?',
+      message: 'This will re-send the audio for transcription. The existing transcript will be replaced once the new one is ready.',
+      confirmButton: {
+        text: 'Re-transcribe',
+      },
+    });
+
+    if (isConfirmed) {
+      retranscribeMutation.mutate();
+    }
+  };
+
+  const handleChunkClick = (startedAtMs?: number | null) => {
+    if (startedAtMs != null && typeof (window as any).__papra_audio_seek === 'function') {
+      (window as any).__papra_audio_seek(startedAtMs);
+    }
+  };
+
   return (
     <div class="p-6 mt-4 pb-32 max-w-5xl mx-auto">
       <Suspense>
@@ -101,16 +203,36 @@ export const MeetingPage: Component = () => {
                         <span class="truncate">{meeting.sourceName}</span>
                       </Show>
                     </div>
-                    <div class="flex flex-wrap gap-2">
-                      <Show when={meeting.context}>
-                        <Badge variant="secondary">{meeting.context}</Badge>
-                      </Show>
+                    <div class="flex flex-wrap gap-2 items-center">
+                      <For each={meeting.tags ?? []}>
+                        {tag => (
+                          <TagComponent
+                            name={tag.name}
+                            color={tag.color}
+                            closable
+                            onClose={async () => {
+                              await removeTagFromMeeting({ organizationId: params.organizationId, meetingId: meeting.id, tagId: tag.id });
+                              await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'meetings', meeting.id] });
+                            }}
+                          />
+                        )}
+                      </For>
                       <Show when={meeting.language}>
                         <Badge variant="outline">{meeting.language}</Badge>
                       </Show>
                     </div>
                   </div>
                   <div class="flex items-center gap-2">
+                    <Show when={meeting.sourceStorageKey}>
+                      <Button
+                        variant="outline"
+                        onClick={handleRetranscribe}
+                        isLoading={retranscribeMutation.isPending}
+                      >
+                        <div class="i-tabler-refresh size-4 mr-1.5" />
+                        Re-transcribe
+                      </Button>
+                    </Show>
                     <Button
                       variant="destructive"
                       onClick={handleDelete}
@@ -120,6 +242,23 @@ export const MeetingPage: Component = () => {
                     </Button>
                   </div>
                 </div>
+
+                <AudioPlayer
+                  organizationId={params.organizationId}
+                  meetingId={params.meetingId}
+                  sourceStorageKey={meeting.sourceStorageKey}
+                />
+
+                <Show when={meeting.summary}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p class="text-sm leading-6 whitespace-pre-wrap">{meeting.summary}</p>
+                    </CardContent>
+                  </Card>
+                </Show>
 
                 <Card>
                   <CardHeader>
@@ -154,7 +293,10 @@ export const MeetingPage: Component = () => {
                   >
                     <For each={meeting.chunks ?? []}>
                       {chunk => (
-                        <Card>
+                        <Card
+                          class={chunk.startedAtMs != null ? 'cursor-pointer hover:border-primary/40 transition-colors' : ''}
+                          onClick={() => handleChunkClick(chunk.startedAtMs)}
+                        >
                           <CardHeader class="pb-3">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                               <div class="flex items-center gap-2">

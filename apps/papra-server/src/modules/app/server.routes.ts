@@ -3,12 +3,15 @@ import { registerAdminRoutes } from '../admin/admin.routes';
 import { registerApiKeysRoutes } from '../api-keys/api-keys.routes';
 import { registerConfigRoutes } from '../config/config.routes';
 import { registerCustomPropertiesRoutes } from '../custom-properties/custom-properties.routes';
+import { registerDocumentFoldersRoutes } from '../document-folders/document-folders.routes';
+import { registerDocumentVersionsRoutes } from '../document-versions/document-versions.routes';
 import { registerDocumentActivityRoutes } from '../documents/document-activity/document-activity.routes';
 import { registerDocumentsRoutes } from '../documents/documents.routes';
 import { registerIntakeEmailsRoutes } from '../intake-emails/intake-emails.routes';
 import { registerInvitationsRoutes } from '../invitations/invitations.routes';
 import { registerMeetingsRoutes } from '../meetings/meetings.routes';
 import { registerOrganizationsRoutes } from '../organizations/organizations.routes';
+import { registerPdfPasswordRulesRoutes } from '../pdf-password-rules/pdf-password-rules.routes';
 import { registerSubscriptionsRoutes } from '../subscriptions/subscriptions.routes';
 import { registerTaggingRulesRoutes } from '../tagging-rules/tagging-rules.routes';
 import { registerTagsRoutes } from '../tags/tags.routes';
@@ -36,5 +39,8 @@ export function registerRoutes(context: RouteDefinitionContext) {
   registerInvitationsRoutes(context);
   registerDocumentActivityRoutes(context);
   registerCustomPropertiesRoutes(context);
+  registerDocumentFoldersRoutes(context);
+  registerDocumentVersionsRoutes(context);
+  registerPdfPasswordRulesRoutes(context);
   registerAdminRoutes(context);
 }

@@ -26,11 +26,13 @@ export async function fetchOrganizationDocuments({
   pageIndex,
   pageSize,
   searchQuery,
+  folderId,
 }: {
   organizationId: string;
   pageIndex: number;
   pageSize: number;
   searchQuery?: string;
+  folderId?: string;
 }) {
   const {
     documents,
@@ -43,6 +45,7 @@ export async function fetchOrganizationDocuments({
     path: `/api/organizations/${organizationId}/documents`,
     query: {
       searchQuery,
+      folderId,
       pageIndex,
       pageSize,
     },
@@ -79,6 +82,27 @@ export async function fetchOrganizationDeletedDocuments({
     documentsCount,
     documents: documents.map(coerceDates),
   };
+}
+
+export async function replaceDocumentFile({
+  documentId,
+  organizationId,
+  file,
+}: {
+  documentId: string;
+  organizationId: string;
+  file: File;
+}) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const { document } = await apiClient<{ document: AsDto<Document> }>({
+    method: 'POST',
+    path: `/api/organizations/${organizationId}/documents/${documentId}/replace`,
+    body: formData,
+  });
+
+  return { document: coerceDates(document) };
 }
 
 export async function deleteDocument({

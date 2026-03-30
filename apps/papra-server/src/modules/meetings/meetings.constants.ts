@@ -5,3 +5,12 @@ export const MEETING_ID_REGEX = createPrefixedIdRegex({ prefix: MEETING_ID_PREFI
 
 export const MEETING_CHUNK_ID_PREFIX = 'mch';
 export const MEETING_CHUNK_ID_REGEX = createPrefixedIdRegex({ prefix: MEETING_CHUNK_ID_PREFIX });
+
+export const MEETING_STATUSES = {
+  UPLOADING: 'uploading',
+  PROCESSING: 'processing',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+} as const;
+
+export type MeetingStatus = (typeof MEETING_STATUSES)[keyof typeof MEETING_STATUSES];

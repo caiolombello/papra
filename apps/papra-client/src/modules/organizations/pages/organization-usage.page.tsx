@@ -4,6 +4,7 @@ import { useParams } from '@solidjs/router';
 import { useQuery } from '@tanstack/solid-query';
 import { Show, Suspense } from 'solid-js';
 import { useI18n } from '@/modules/i18n/i18n.provider';
+import { fetchMeetingStats } from '@/modules/meetings/meetings.services';
 import { fetchOrganizationUsage } from '@/modules/subscriptions/subscriptions.services';
 import { Card, CardContent } from '@/modules/ui/components/card';
 import { ProgressCircle } from '@/modules/ui/components/progress-circle';
@@ -47,6 +48,11 @@ export const OrganizationUsagePage: Component = () => {
   const query = useQuery(() => ({
     queryKey: ['organizations', params.organizationId, 'usage'],
     queryFn: () => fetchOrganizationUsage({ organizationId: params.organizationId }),
+  }));
+
+  const meetingStatsQuery = useQuery(() => ({
+    queryKey: ['organizations', params.organizationId, 'meetings', 'stats'],
+    queryFn: () => fetchMeetingStats({ organizationId: params.organizationId }),
   }));
 
   return (
@@ -93,6 +99,47 @@ export const OrganizationUsagePage: Component = () => {
 
                 </CardContent>
               </Card>
+
+              <Show when={meetingStatsQuery.data}>
+                {getStats => (
+                  <>
+                    <h2 class="text-lg font-semibold mt-8 mb-2">Meetings</h2>
+                    <p class="text-muted-foreground mb-4">Transcription usage statistics.</p>
+
+                    <Card>
+                      <CardContent class="pt-6 flex flex-col gap-4">
+                        <div class="flex gap-4 items-center">
+                          <div class="flex items-center justify-center size-10 rounded-full bg-primary/10 flex-shrink-0">
+                            <div class="i-tabler-microphone size-5 text-primary" />
+                          </div>
+                          <div class="flex-1">
+                            <div class="font-medium leading-none">Total meetings</div>
+                            <div class="text-sm text-muted-foreground">All meetings in this organization</div>
+                          </div>
+                          <div class="text-2xl font-semibold">{getStats().stats.total}</div>
+                        </div>
+
+                        <Separator />
+
+                        <div class="flex gap-6">
+                          <div class="flex-1 text-center">
+                            <div class="text-2xl font-semibold text-primary">{getStats().stats.completed}</div>
+                            <div class="text-xs text-muted-foreground mt-1">Completed</div>
+                          </div>
+                          <div class="flex-1 text-center">
+                            <div class="text-2xl font-semibold text-yellow-500">{getStats().stats.processing}</div>
+                            <div class="text-xs text-muted-foreground mt-1">Processing</div>
+                          </div>
+                          <div class="flex-1 text-center">
+                            <div class="text-2xl font-semibold text-red-500">{getStats().stats.failed}</div>
+                            <div class="text-xs text-muted-foreground mt-1">Failed</div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
+              </Show>
             </>
           )}
         </Show>

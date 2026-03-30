@@ -788,6 +788,7 @@ export const translations: Partial<TranslationsDictionary> = {
   'layout.menu.usage': 'Χρήση',
   'layout.menu.intake-emails': 'Email εισαγωγής',
   'layout.menu.webhooks': 'Webhooks',
+  'layout.menu.pdf-password-rules': 'Κανόνες κωδικών PDF',
   'layout.menu.members': 'Μέλη',
   'layout.menu.invitations': 'Προσκλήσεις',
   'layout.menu.admin': 'Διαχείριση',

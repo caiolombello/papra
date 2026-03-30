@@ -29,6 +29,8 @@ RUN pnpm deploy --filter=@papra/app-server --legacy --prod /prod/papra-server
 
 FROM base
 
+RUN apt-get update && apt-get install -y --no-install-recommends qpdf tesseract-ocr tesseract-ocr-por && rm -rf /var/lib/apt/lists/*
+
 # Build arguments for version metadata
 ARG PAPRA_VERSION=dev
 ARG GIT_COMMIT=unknown

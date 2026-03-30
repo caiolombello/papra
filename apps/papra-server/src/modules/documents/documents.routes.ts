@@ -12,6 +12,7 @@ import { getOrganizationPlan } from '../plans/plans.usecases';
 import { getFileStreamFromMultipartForm } from '../shared/streams/file-upload';
 import { validateJsonBody, validateParams, validateQuery } from '../shared/validation/validation';
 import { createSubscriptionsRepository } from '../subscriptions/subscriptions.repository';
+import { createDocumentVersionsRepository } from '../document-versions/document-versions.repository';
 import { createTagsRepository } from '../tags/tags.repository';
 import { searchOrganizationDocuments } from './document-search/document-search.usecase';
 import { createDocumentIsNotDeletedError } from './documents.errors';
@@ -32,6 +33,7 @@ export function registerDocumentsRoutes(context: RouteDefinitionContext) {
   setupDeleteDocumentRoute(context);
   setupGetDocumentFileRoute(context);
   setupUpdateDocumentRoute(context);
+  setupReplaceDocumentFileRoute(context);
 }
 
 function setupCreateDocumentRoute({ app, ...deps }: RouteDefinitionContext) {
@@ -265,6 +267,7 @@ function setupGetDocumentsRoute({ app, db, documentSearchServices }: RouteDefini
     validateQuery(
       z.object({
         searchQuery: z.string().optional().default(''),
+        folderId: z.string().optional(),
         pageIndex: z.coerce.number().min(0).int().optional().default(0),
         pageSize: z.coerce.number().min(1).max(100).int().optional().default(100),
       }),
@@ -273,15 +276,33 @@ function setupGetDocumentsRoute({ app, db, documentSearchServices }: RouteDefini
       const { userId } = getUser({ context });
 
       const { organizationId } = context.req.valid('param');
-      const { searchQuery, pageIndex, pageSize } = context.req.valid('query');
+      const { searchQuery, folderId, pageIndex, pageSize } = context.req.valid('query');
 
       const organizationsRepository = createOrganizationsRepository({ db });
+      const documentsRepository = createDocumentsRepository({ db });
       const customPropertiesRepository = createCustomPropertiesRepository({ db });
       const tagsRepository = createTagsRepository({ db });
 
       await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
 
-      const { documents, documentsCount } = await searchOrganizationDocuments({ organizationId, searchQuery, pageIndex, pageSize, documentSearchServices });
+      let documents;
+      let documentsCount;
+
+      if (folderId && !searchQuery) {
+        const result = await documentsRepository.getDocumentsByFolderId({
+          organizationId,
+          folderId: folderId === 'root' ? null : folderId,
+          pageIndex,
+          pageSize,
+        });
+        documents = result.documents;
+        documentsCount = result.documentsCount;
+      } else {
+        const result = await searchOrganizationDocuments({ organizationId, searchQuery, pageIndex, pageSize, documentSearchServices });
+        documents = result.documents;
+        documentsCount = result.documentsCount;
+      }
+
       const { enrichedDocuments } = await enrichAndFormatDocumentsForApi({ documents, tagsRepository, customPropertiesRepository });
 
       return context.json({ documents: enrichedDocuments, documentsCount });
@@ -416,6 +437,94 @@ function setupUpdateDocumentRoute({ app, db, eventServices }: RouteDefinitionCon
       });
 
       return context.json({ document: formatDocumentForApi({ document }) });
+    },
+  );
+}
+
+function setupReplaceDocumentFileRoute({ app, db, documentsStorageService, taskServices, eventServices, config }: RouteDefinitionContext) {
+  app.post(
+    '/api/organizations/:organizationId/documents/:documentId/replace',
+    requireAuthentication({ apiKeyPermissions: ['documents:update'] }),
+    validateParams(z.object({
+      organizationId: organizationIdSchema,
+      documentId: documentIdSchema,
+    })),
+    async (context) => {
+      const { userId } = getUser({ context });
+      const { organizationId, documentId } = context.req.valid('param');
+
+      const organizationsRepository = createOrganizationsRepository({ db });
+      const documentsRepository = createDocumentsRepository({ db });
+      const documentVersionsRepository = createDocumentVersionsRepository({ db });
+
+      await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
+
+      const { document: existingDocument } = await getDocumentOrThrow({ documentId, organizationId, documentsRepository });
+
+      // Save current version to history
+      await documentVersionsRepository.createDocumentVersion({
+        documentId: existingDocument.id,
+        organizationId,
+        versionNumber: existingDocument.versionNumber ?? 1,
+        originalName: existingDocument.originalName,
+        originalSize: existingDocument.originalSize,
+        originalStorageKey: existingDocument.originalStorageKey,
+        originalSha256Hash: existingDocument.originalSha256Hash,
+        mimeType: existingDocument.mimeType,
+        createdBy: existingDocument.createdBy,
+        fileEncryptionKeyWrapped: existingDocument.fileEncryptionKeyWrapped,
+        fileEncryptionKekVersion: existingDocument.fileEncryptionKekVersion,
+        fileEncryptionAlgorithm: existingDocument.fileEncryptionAlgorithm,
+      });
+
+      // Parse the new file upload
+      const plansRepository = createPlansRepository({ config });
+      const subscriptionsRepository = createSubscriptionsRepository({ db });
+      const { organizationPlan } = await getOrganizationPlan({ organizationId, plansRepository, subscriptionsRepository });
+      const { maxFileSize } = organizationPlan.limits;
+
+      const { fileStream, fileName, mimeType } = await getFileStreamFromMultipartForm({
+        body: context.req.raw.body,
+        headers: context.req.header(),
+        maxFileSize: isDocumentSizeLimitEnabled({ maxUploadSize: maxFileSize }) ? maxFileSize : undefined,
+      });
+
+      // Create new document (reuses full pipeline: hash, storage, etc.)
+      const createDocument = createDocumentCreationUsecase({ db, config, taskServices, documentsStorageService, eventServices });
+
+      const { document: newDocument } = await createDocument({
+        fileStream,
+        fileName,
+        mimeType,
+        userId,
+        organizationId,
+      });
+
+      // Swap: update original document with new file data, delete the temp document record
+      const newVersionNumber = (existingDocument.versionNumber ?? 1) + 1;
+
+      await documentsRepository.updateDocumentFile({
+        documentId: existingDocument.id,
+        organizationId,
+        originalName: newDocument.originalName,
+        originalSize: newDocument.originalSize,
+        originalStorageKey: newDocument.originalStorageKey,
+        originalSha256Hash: newDocument.originalSha256Hash,
+        mimeType: newDocument.mimeType,
+        versionNumber: newVersionNumber,
+      });
+
+      // Delete the temporary new document record (we only needed its storage file)
+      await documentsRepository.hardDeleteDocument({ documentId: newDocument.id });
+
+      const { document: updatedDocument } = await getDocumentOrThrow({ documentId, organizationId, documentsRepository });
+
+      eventServices.emitEvent({
+        eventName: 'document.updated',
+        payload: { document: updatedDocument, changes: { name: updatedDocument.name }, userId },
+      });
+
+      return context.json({ document: formatDocumentForApi({ document: updatedDocument }) });
     },
   );
 }

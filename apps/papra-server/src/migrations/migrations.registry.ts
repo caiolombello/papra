@@ -19,6 +19,11 @@ import { caseInsensitiveTagNameUniqConstraintMigration } from './list/0016-case-
 import { documentsDateMigration } from './list/0017-documents-date.migration';
 import { customPropertiesMigration } from './list/0018-custom-properties.migration';
 import { meetingsMigration } from './list/0019-meetings.migration';
+import { pdfPasswordRulesMigration } from './list/0020-pdf-password-rules.migration';
+import { meetingsStatusMigration } from './list/0021-meetings-status.migration';
+import { meetingsTagsMigration } from './list/0022-meetings-tags.migration';
+import { documentFoldersMigration } from './list/0023-document-folders.migration';
+import { documentVersionsMigration } from './list/0024-document-versions.migration';
 
 export const migrations: Migration[] = [
   initialSchemaSetupMigration,
@@ -40,4 +45,9 @@ export const migrations: Migration[] = [
   documentsDateMigration,
   customPropertiesMigration,
   meetingsMigration,
+  pdfPasswordRulesMigration,
+  meetingsStatusMigration,
+  meetingsTagsMigration,
+  documentFoldersMigration,
+  documentVersionsMigration,
 ];

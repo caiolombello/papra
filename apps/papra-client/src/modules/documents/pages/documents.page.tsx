@@ -1,32 +1,73 @@
 import type { Component } from 'solid-js';
-import { useParams } from '@solidjs/router';
-import { keepPreviousData, useQuery } from '@tanstack/solid-query';
-import { For, Show, Suspense } from 'solid-js';
+import { A, useParams, useSearchParams } from '@solidjs/router';
+import { createMutation, keepPreviousData, useQuery } from '@tanstack/solid-query';
+import { createSignal, For, Show, Suspense } from 'solid-js';
+import { createFolder, fetchFolder, fetchFolders } from '@/modules/document-folders/document-folders.services';
 import { useI18n } from '@/modules/i18n/i18n.provider';
+import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
 import { createParamSynchronizedPagination } from '@/modules/shared/pagination/query-synchronized-pagination';
 import { createParamSynchronizedSignal } from '@/modules/shared/signals/params';
+import { queryClient } from '@/modules/shared/query/query-client';
 import { cn } from '@/modules/shared/style/cn';
 import { useDebounce } from '@/modules/shared/utils/timing';
-import { Button } from '@/modules/ui/components/button';
-import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
 import { Badge } from '@/modules/ui/components/badge';
-import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
-import { A } from '@solidjs/router';
+import { Button } from '@/modules/ui/components/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
+import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
+import { searchOrganizationContent } from '@/modules/search/search.services';
 import { DocumentUploadArea } from '../components/document-upload-area.component';
 import { createdAtColumn, DocumentsPaginatedList, standardActionsColumn, tagsColumn } from '../components/documents-list.component';
 import { fetchOrganizationDocuments } from '../documents.services';
-import { searchOrganizationContent } from '@/modules/search/search.services';
 
 export const DocumentsPage: Component = () => {
   const params = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useI18n();
   const [getSearchQuery, setSearchQuery] = createParamSynchronizedSignal<string>({ paramKey: 'query', defaultValue: '' });
   const debouncedSearchQuery = useDebounce(getSearchQuery, 300);
   const [getPagination, setPagination] = createParamSynchronizedPagination();
 
+  const currentFolderId = () => searchParams.folderId as string | undefined;
+  const isInFolder = () => Boolean(currentFolderId());
+
+  const foldersQuery = useQuery(() => ({
+    queryKey: ['organizations', params.organizationId, 'folders', currentFolderId() ?? 'root'],
+    queryFn: () => fetchFolders({ organizationId: params.organizationId, parentId: currentFolderId() ?? null }),
+    enabled: !debouncedSearchQuery(),
+  }));
+
+  const folderDetailQuery = useQuery(() => ({
+    queryKey: ['organizations', params.organizationId, 'folders', currentFolderId(), 'detail'],
+    queryFn: () => fetchFolder({ organizationId: params.organizationId, folderId: currentFolderId()! }),
+    enabled: Boolean(currentFolderId()),
+  }));
+
+  const [showNewFolder, setShowNewFolder] = createSignal(false);
+  const [newFolderName, setNewFolderName] = createSignal('');
+
+  const createFolderMutation = createMutation(() => ({
+    mutationFn: () => createFolder({
+      organizationId: params.organizationId,
+      name: newFolderName(),
+      parentId: currentFolderId() ?? null,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'folders'] });
+      setShowNewFolder(false);
+      setNewFolderName('');
+    },
+  }));
+
+  const navigateToFolder = (folderId: string | null) => {
+    if (folderId) {
+      setSearchParams({ folderId });
+    } else {
+      setSearchParams({ folderId: undefined });
+    }
+  };
+
   const documentsQuery = useQuery(() => ({
-    queryKey: ['organizations', params.organizationId, 'documents', getPagination(), debouncedSearchQuery()],
+    queryKey: ['organizations', params.organizationId, 'documents', getPagination(), debouncedSearchQuery(), currentFolderId()],
     queryFn: () => debouncedSearchQuery().length > 0
       ? searchOrganizationContent({
           organizationId: params.organizationId,
@@ -37,6 +78,7 @@ export const DocumentsPage: Component = () => {
       : fetchOrganizationDocuments({
           organizationId: params.organizationId,
           searchQuery: debouncedSearchQuery(),
+          folderId: currentFolderId() ?? 'root',
           ...getPagination(),
         }),
     placeholderData: keepPreviousData,
@@ -94,7 +136,70 @@ export const DocumentsPage: Component = () => {
                     </Button>
                   </Show>
 
+                  <Button variant="outline" size="sm" class="ml-2" onClick={() => setShowNewFolder(true)}>
+                    <div class="i-tabler-folder-plus size-4 mr-1" />
+                    New Folder
+                  </Button>
                 </div>
+
+                {/* Breadcrumb */}
+                <Show when={isInFolder() && folderDetailQuery.data}>
+                  <div class="flex items-center gap-1 text-sm mt-3 mb-2">
+                    <button class="text-primary hover:underline" onClick={() => navigateToFolder(null)}>Documents</button>
+                    <For each={folderDetailQuery.data?.path ?? []}>
+                      {(crumb, index) => (
+                        <>
+                          <span class="text-muted-foreground">/</span>
+                          <Show
+                            when={index() < (folderDetailQuery.data?.path.length ?? 0) - 1}
+                            fallback={<span class="font-medium">{crumb.name}</span>}
+                          >
+                            <button class="text-primary hover:underline" onClick={() => navigateToFolder(crumb.id)}>{crumb.name}</button>
+                          </Show>
+                        </>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+
+                {/* New folder input */}
+                <Show when={showNewFolder()}>
+                  <div class="flex items-center gap-2 mt-2 mb-2">
+                    <TextFieldRoot class="flex-1 max-w-xs">
+                      <TextField
+                        placeholder="Folder name"
+                        value={newFolderName()}
+                        onInput={e => setNewFolderName(e.currentTarget.value)}
+                        onKeyDown={e => e.key === 'Enter' && newFolderName().trim() && createFolderMutation.mutate()}
+                        autofocus
+                      />
+                    </TextFieldRoot>
+                    <Button size="sm" onClick={() => createFolderMutation.mutate()} disabled={!newFolderName().trim() || createFolderMutation.isPending}>
+                      Create
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setShowNewFolder(false); setNewFolderName(''); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </Show>
+
+                {/* Subfolders */}
+                <Show when={!debouncedSearchQuery() && (foldersQuery.data?.folders?.length ?? 0) > 0}>
+                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-3 mb-4">
+                    <For each={foldersQuery.data?.folders ?? []}>
+                      {folder => (
+                        <button
+                          class="flex items-center gap-2 px-3 py-2 rounded-lg border bg-card hover:bg-accent/30 transition-colors text-left"
+                          onClick={() => navigateToFolder(folder.id)}
+                        >
+                          <div class="i-tabler-folder text-primary size-5" />
+                          <span class="text-sm font-medium truncate">{folder.name}</span>
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+
                 <div class="mb-4 text-sm text-muted-foreground mt-2 ml-2">
                   <Show
                     when={debouncedSearchQuery().length > 0}

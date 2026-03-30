@@ -812,6 +812,7 @@ export const translations = {
   'layout.menu.usage': 'Usage',
   'layout.menu.intake-emails': 'Intake emails',
   'layout.menu.webhooks': 'Webhooks',
+  'layout.menu.pdf-password-rules': 'PDF password rules',
   'layout.menu.members': 'Members',
   'layout.menu.invitations': 'Invitations',
   'layout.menu.admin': 'Admin',

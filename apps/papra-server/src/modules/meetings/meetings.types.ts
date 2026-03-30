@@ -33,6 +33,7 @@ export type MeetingForUpdate = {
   language?: string;
   context?: string;
   summary?: string;
+  status?: string;
   startedAt?: Date;
   endedAt?: Date;
 };

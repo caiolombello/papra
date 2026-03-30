@@ -16,6 +16,8 @@ export type Document = {
   deletedAt?: Date;
   deletedBy?: string;
   content: string;
+  versionNumber?: number;
+  folderId?: string | null;
   tags: Tag[];
   customProperties?: DocumentCustomProperty[];
 };

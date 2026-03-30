@@ -44,6 +44,7 @@ import { CreateTaggingRulePage } from './modules/tagging-rules/pages/create-tagg
 import { TaggingRulesPage } from './modules/tagging-rules/pages/tagging-rules.page';
 import { UpdateTaggingRulePage } from './modules/tagging-rules/pages/update-tagging-rule.page';
 import { TagsPage } from './modules/tags/pages/tags.page';
+import { PdfPasswordRulesPage } from './modules/pdf-password-rules/pages/pdf-password-rules.page';
 import { OrganizationSettingsLayout } from './modules/ui/layouts/organization-settings.layout';
 import { OrganizationLayout } from './modules/ui/layouts/organization.layout';
 import { SettingsLayout } from './modules/ui/layouts/settings.layout';
@@ -228,6 +229,10 @@ export const routes: RouteDefinition[] = [
               {
                 path: '/webhooks',
                 component: WebhooksPage,
+              },
+              {
+                path: '/pdf-password-rules',
+                component: PdfPasswordRulesPage,
               },
             ],
           },

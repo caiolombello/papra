@@ -1,5 +1,6 @@
 import { primaryKey, sqliteTable, text, unique } from 'drizzle-orm/sqlite-core';
 import { documentsTable } from '../documents/documents.table';
+import { meetingsTable } from '../meetings/meetings.tables';
 import { organizationsTable } from '../organizations/organizations.table';
 import { createPrimaryKeyField, createTimestampColumns } from '../shared/db/columns.helpers';
 import { tagIdPrefix } from './tags.constants';
@@ -32,6 +33,20 @@ export const documentsTagsTable = sqliteTable(
     primaryKey({
       name: 'documents_tags_pkey',
       columns: [table.documentId, table.tagId],
+    }),
+  ],
+);
+
+export const meetingsTagsTable = sqliteTable(
+  'meetings_tags',
+  {
+    meetingId: text('meeting_id').notNull().references(() => meetingsTable.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+    tagId: text('tag_id').notNull().references(() => tagsTable.id, { onDelete: 'cascade', onUpdate: 'cascade' }),
+  },
+  table => [
+    primaryKey({
+      name: 'meetings_tags_pkey',
+      columns: [table.meetingId, table.tagId],
     }),
   ],
 );

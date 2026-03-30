@@ -1,4 +1,5 @@
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { documentFoldersTable } from '../document-folders/document-folders.table';
 import { organizationsTable } from '../organizations/organizations.table';
 import { createPrimaryKeyField, createTimestampColumns } from '../shared/db/columns.helpers';
 import { usersTable } from '../users/users.table';
@@ -27,6 +28,9 @@ export const documentsTable = sqliteTable('documents', {
 
   deletedAt: integer('deleted_at', { mode: 'timestamp_ms' }),
   deletedBy: text('deleted_by').references(() => usersTable.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  folderId: text('folder_id').references(() => documentFoldersTable.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+  versionNumber: integer('version_number').notNull().default(1),
+
   isDeleted: integer('is_deleted', { mode: 'boolean' }).notNull().default(false),
 }, table => [
   // To select paginated documents by organization
@@ -41,4 +45,6 @@ export const documentsTable = sqliteTable('documents', {
   index('documents_organization_id_size_index').on(table.organizationId, table.originalSize),
   // To list documents by file encryption KEK version
   index('documents_file_encryption_kek_version_index').on(table.fileEncryptionKekVersion),
+  // To list documents by folder
+  index('documents_folder_id_index').on(table.folderId),
 ]);

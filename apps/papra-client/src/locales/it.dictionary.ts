@@ -788,6 +788,7 @@ export const translations: Partial<TranslationsDictionary> = {
   'layout.menu.usage': 'Utilizzo',
   'layout.menu.intake-emails': 'Email di acquisizione',
   'layout.menu.webhooks': 'Webhook',
+  'layout.menu.pdf-password-rules': 'Regole password PDF',
   'layout.menu.members': 'Membri',
   'layout.menu.invitations': 'Inviti',
   'layout.menu.admin': 'Amministrazione',

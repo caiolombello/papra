@@ -1,7 +1,9 @@
 import type { Database } from '../app/database/database.types';
+import type { MeetingStatus } from './meetings.constants';
 import type { DbSelectableMeeting, DbSelectableMeetingChunk, MeetingChunkForCreation, MeetingForApi, MeetingForCreation, MeetingForIngestion, MeetingForUpdate, MeetingSearchMatch } from './meetings.types';
 import { injectArguments } from '@corentinth/chisels';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { MEETING_STATUSES } from './meetings.constants';
 import { meetingsTable, meetingChunksTable } from './meetings.tables';
 import { normalizeMeetingSearchQuery } from './meetings.models';
 
@@ -15,10 +17,12 @@ export function createMeetingsRepository({ db }: { db: Database }) {
     getMeetingBySourceStorageKey,
     getMeetingChunks,
     updateMeeting,
+    updateMeetingStatus,
     replaceMeetingChunks,
     upsertMeetingFromIngestion,
     deleteMeeting,
     searchOrganizationMeetings,
+    getMeetingStats,
   }, { db });
 }
 
@@ -26,11 +30,13 @@ async function createMeeting({
   organizationId,
   createdBy,
   meeting,
+  status,
   db,
 }: {
   organizationId: string;
   createdBy: string;
   meeting: MeetingForCreation;
+  status?: MeetingStatus;
   db: Database;
 }) {
   const [createdMeeting] = await db
@@ -48,6 +54,7 @@ async function createMeeting({
       summary: meeting.summary,
       startedAt: meeting.startedAt,
       endedAt: meeting.endedAt,
+      ...(status !== undefined && { status }),
     })
     .returning();
 
@@ -189,6 +196,7 @@ async function updateMeeting({
       summary: meeting.summary,
       startedAt: meeting.startedAt,
       endedAt: meeting.endedAt,
+      ...(meeting.status !== undefined && { status: meeting.status }),
       updatedAt: new Date(),
     })
     .where(and(
@@ -198,6 +206,26 @@ async function updateMeeting({
     .returning();
 
   return { meeting: updatedMeeting };
+}
+
+async function updateMeetingStatus({
+  meetingId,
+  organizationId,
+  status,
+  db,
+}: {
+  meetingId: string;
+  organizationId: string;
+  status: MeetingStatus;
+  db: Database;
+}) {
+  await db
+    .update(meetingsTable)
+    .set({ status, updatedAt: new Date() })
+    .where(and(
+      eq(meetingsTable.id, meetingId),
+      eq(meetingsTable.organizationId, organizationId),
+    ));
 }
 
 async function replaceMeetingChunks({
@@ -249,6 +277,7 @@ async function upsertMeetingFromIngestion({
       organizationId,
       createdBy,
       meeting,
+      status: MEETING_STATUSES.COMPLETED,
       db,
     });
 
@@ -272,6 +301,7 @@ async function upsertMeetingFromIngestion({
       summary: meeting.summary,
       startedAt: meeting.startedAt,
       endedAt: meeting.endedAt,
+      status: MEETING_STATUSES.COMPLETED,
     },
     db,
   });
@@ -290,6 +320,30 @@ async function upsertMeetingFromIngestion({
   return {
     meeting: updatedMeeting,
     mode: 'updated' as const,
+  };
+}
+
+async function getMeetingStats({
+  organizationId,
+  db,
+}: {
+  organizationId: string;
+  db: Database;
+}) {
+  const [result] = await db.select({
+    total: sql<number>`COUNT(*)`,
+    completed: sql<number>`SUM(CASE WHEN ${meetingsTable.status} = 'completed' THEN 1 ELSE 0 END)`,
+    processing: sql<number>`SUM(CASE WHEN ${meetingsTable.status} IN ('processing', 'uploading') THEN 1 ELSE 0 END)`,
+    failed: sql<number>`SUM(CASE WHEN ${meetingsTable.status} = 'failed' THEN 1 ELSE 0 END)`,
+  }).from(meetingsTable).where(eq(meetingsTable.organizationId, organizationId));
+
+  return {
+    stats: {
+      total: result?.total ?? 0,
+      completed: result?.completed ?? 0,
+      processing: result?.processing ?? 0,
+      failed: result?.failed ?? 0,
+    },
   };
 }
 

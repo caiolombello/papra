@@ -1,20 +1,42 @@
 import type { Component } from 'solid-js';
+import type { Meeting } from '../meetings.types';
 import { A, useParams } from '@solidjs/router';
 import { keepPreviousData, useQuery } from '@tanstack/solid-query';
-import { For, Show, Suspense } from 'solid-js';
+import { createSignal, For, Show, Suspense } from 'solid-js';
 import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
 import { useI18n } from '@/modules/i18n/i18n.provider';
 import { createParamSynchronizedPagination } from '@/modules/shared/pagination/query-synchronized-pagination';
 import { createParamSynchronizedSignal } from '@/modules/shared/signals/params';
 import { cn } from '@/modules/shared/style/cn';
 import { useDebounce } from '@/modules/shared/utils/timing';
+import { Tag as TagComponent } from '@/modules/tags/components/tag.component';
 import { Badge } from '@/modules/ui/components/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
 import { EmptyState } from '@/modules/ui/components/empty';
 import { Button } from '@/modules/ui/components/button';
 import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
 import { MeetingUploadArea } from '../components/meeting-upload-area.component';
+import { trackMeetingsForNotifications } from '../composables/use-transcription-notifications';
 import { fetchOrganizationMeetings, searchOrganizationMeetings } from '../meetings.services';
+
+function MeetingStatusBadge(props: { status?: string }) {
+  return (
+    <Show when={props.status && props.status !== 'completed'}>
+      <Badge
+        variant={props.status === 'failed' ? 'destructive' : 'secondary'}
+        class="gap-1"
+      >
+        <Show when={props.status === 'uploading' || props.status === 'processing'}>
+          <div class="i-tabler-loader-2 animate-spin size-3" />
+        </Show>
+        <Show when={props.status === 'failed'}>
+          <div class="i-tabler-alert-circle size-3" />
+        </Show>
+        {props.status === 'uploading' ? 'Uploading...' : props.status === 'processing' ? 'Transcribing...' : 'Failed'}
+      </Badge>
+    </Show>
+  );
+}
 
 export const MeetingsPage: Component = () => {
   const params = useParams();
@@ -23,19 +45,29 @@ export const MeetingsPage: Component = () => {
   const debouncedSearchQuery = useDebounce(getSearchQuery, 300);
   const [getPagination, setPagination] = createParamSynchronizedPagination();
 
+  const [getPendingFlag, setPendingFlag] = createSignal(false);
+
   const meetingsQuery = useQuery(() => ({
     queryKey: ['organizations', params.organizationId, 'meetings', getPagination(), debouncedSearchQuery()],
-    queryFn: () => debouncedSearchQuery().length > 0
-      ? searchOrganizationMeetings({
-          organizationId: params.organizationId,
-          searchQuery: debouncedSearchQuery(),
-          ...getPagination(),
-        })
-      : fetchOrganizationMeetings({
-          organizationId: params.organizationId,
-          ...getPagination(),
-        }),
+    queryFn: async () => {
+      const result = await (debouncedSearchQuery().length > 0
+        ? searchOrganizationMeetings({
+            organizationId: params.organizationId,
+            searchQuery: debouncedSearchQuery(),
+            ...getPagination(),
+          })
+        : fetchOrganizationMeetings({
+            organizationId: params.organizationId,
+            ...getPagination(),
+          }));
+
+      setPendingFlag(result.meetings.some((m: Meeting) => m.status === 'uploading' || m.status === 'processing'));
+      trackMeetingsForNotifications(result.meetings);
+
+      return result;
+    },
     placeholderData: keepPreviousData,
+    refetchInterval: getPendingFlag() ? 10_000 : false,
   }));
 
   return (
@@ -97,9 +129,10 @@ export const MeetingsPage: Component = () => {
         >
           <div class="space-y-4">
             <For each={meetingsQuery.data?.meetings ?? []}>
-              {meeting => (
-                <A href={`/organizations/${params.organizationId}/meetings/${meeting.id}`} class="block">
-                  <Card class="transition-colors hover:bg-accent/30">
+              {(meeting) => {
+                const isCompleted = () => !meeting.status || meeting.status === 'completed';
+                const cardContent = () => (
+                  <Card class={cn('transition-colors', isCompleted() ? 'hover:bg-accent/30' : 'opacity-60')}>
                     <CardHeader class="gap-3">
                       <div class="flex items-start justify-between gap-4">
                         <div class="min-w-0">
@@ -109,9 +142,10 @@ export const MeetingsPage: Component = () => {
                           </CardDescription>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 justify-end">
-                          <Show when={meeting.context}>
-                            <Badge variant="secondary">{meeting.context}</Badge>
-                          </Show>
+                          <MeetingStatusBadge status={meeting.status} />
+                          <For each={meeting.tags ?? []}>
+                            {tag => <TagComponent name={tag.name} color={tag.color} />}
+                          </For>
                           <Show when={meeting.language}>
                             <Badge variant="outline">{meeting.language}</Badge>
                           </Show>
@@ -122,13 +156,27 @@ export const MeetingsPage: Component = () => {
                       <Show when={meeting.sourceName}>
                         <div class="text-sm text-muted-foreground truncate">{meeting.sourceName}</div>
                       </Show>
-                      <div class="text-sm leading-6 line-clamp-4">
-                        {meeting.matches?.[0]?.snippet || meeting.summary || meeting.chunks?.[0]?.content || t('meetings.list.no-preview')}
-                      </div>
+                      <Show when={isCompleted()} fallback={
+                        <div class="text-sm text-muted-foreground italic">
+                          {meeting.status === 'uploading' ? 'Uploading file...' : meeting.status === 'failed' ? 'Transcription failed' : 'Transcription in progress...'}
+                        </div>
+                      }>
+                        <div class="text-sm leading-6 line-clamp-4">
+                          {meeting.matches?.[0]?.snippet || meeting.summary || meeting.chunks?.[0]?.content || t('meetings.list.no-preview')}
+                        </div>
+                      </Show>
                     </CardContent>
                   </Card>
-                </A>
-              )}
+                );
+
+                return (
+                  <Show when={isCompleted()} fallback={<div class="block">{cardContent()}</div>}>
+                    <A href={`/organizations/${params.organizationId}/meetings/${meeting.id}`} class="block">
+                      {cardContent()}
+                    </A>
+                  </Show>
+                );
+              }}
             </For>
           </div>
         </Show>

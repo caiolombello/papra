@@ -85,13 +85,31 @@ export async function uploadMeetingFile({
   organizationId: string;
   onProgress?: (progress: number) => void;
 }) {
-  const { uploadUrl } = await apiClient<{ uploadUrl: string; storageKey: string; fileName: string }>({
+  const { uploadUrl, meetingId } = await apiClient<{ uploadUrl: string; storageKey: string; fileName: string; meetingId: string }>({
     method: 'POST',
     path: `/api/organizations/${organizationId}/meetings/upload/presign`,
     body: { fileName: file.name },
   });
 
   await uploadToPresignedUrl({ file, uploadUrl, onProgress });
+
+  return { meetingId };
+}
+
+export async function updateMeetingStatus({
+  organizationId,
+  meetingId,
+  status,
+}: {
+  organizationId: string;
+  meetingId: string;
+  status: string;
+}) {
+  return apiClient<{ meeting: AsDto<Meeting> }>({
+    method: 'PATCH',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}`,
+    body: { status },
+  });
 }
 
 function uploadToPresignedUrl({
@@ -138,5 +156,78 @@ export async function deleteMeeting({
   await apiClient({
     method: 'DELETE',
     path: `/api/organizations/${organizationId}/meetings/${meetingId}`,
+  });
+}
+
+export async function fetchMeetingPlaybackUrl({
+  organizationId,
+  meetingId,
+}: {
+  organizationId: string;
+  meetingId: string;
+}) {
+  return apiClient<{ playbackUrl: string; expiresInSeconds: number }>({
+    method: 'GET',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}/playback-url`,
+  });
+}
+
+export async function addTagToMeeting({
+  organizationId,
+  meetingId,
+  tagId,
+}: {
+  organizationId: string;
+  meetingId: string;
+  tagId: string;
+}) {
+  return apiClient<{ meetingId: string; tagId: string }>({
+    method: 'POST',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}/tags`,
+    body: { tagId },
+  });
+}
+
+export async function removeTagFromMeeting({
+  organizationId,
+  meetingId,
+  tagId,
+}: {
+  organizationId: string;
+  meetingId: string;
+  tagId: string;
+}) {
+  return apiClient({
+    method: 'DELETE',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}/tags/${tagId}`,
+  });
+}
+
+export async function fetchMeetingStats({ organizationId }: { organizationId: string }) {
+  const { stats } = await apiClient<{
+    stats: {
+      total: number;
+      completed: number;
+      processing: number;
+      failed: number;
+    };
+  }>({
+    method: 'GET',
+    path: `/api/organizations/${organizationId}/meetings/stats`,
+  });
+
+  return { stats };
+}
+
+export async function retranscribeMeeting({
+  organizationId,
+  meetingId,
+}: {
+  organizationId: string;
+  meetingId: string;
+}) {
+  return apiClient<{ message: string; meetingId: string }>({
+    method: 'POST',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}/retranscribe`,
   });
 }

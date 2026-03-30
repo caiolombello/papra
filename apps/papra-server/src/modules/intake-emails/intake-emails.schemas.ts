@@ -13,7 +13,7 @@ export const intakeEmailsIngestionMetaSchema = z.object({
   to: z.array(emailInfoSchema),
   originalTo: z.array(emailInfoSchema).optional().default([]),
   // cc: z.array(emailInfoSchema).optional(),
-  // subject: z.string(),
+  subject: z.string().optional().default(''),
   // text: z.string().optional(),
   // html: z.string().optional(),
 });

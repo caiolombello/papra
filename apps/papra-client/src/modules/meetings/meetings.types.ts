@@ -16,6 +16,13 @@ export type MeetingSearchMatch = {
   snippet: string;
 };
 
+export type MeetingTag = {
+  id: string;
+  name: string;
+  color: string;
+  description?: string | null;
+};
+
 export type Meeting = {
   id: string;
   organizationId: string;
@@ -28,10 +35,12 @@ export type Meeting = {
   language?: string;
   context?: string;
   summary?: string;
+  status?: string;
   startedAt?: Date;
   endedAt?: Date;
   createdAt: Date;
   updatedAt?: Date;
   chunks?: MeetingChunk[];
   matches?: MeetingSearchMatch[];
+  tags?: MeetingTag[];
 };

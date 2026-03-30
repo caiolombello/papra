@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { MEETING_ID_REGEX } from './meetings.constants';
+import { MEETING_ID_REGEX, MEETING_STATUSES } from './meetings.constants';
 
 export const meetingIdSchema = z.string().regex(MEETING_ID_REGEX);
 
@@ -37,6 +37,7 @@ export const updateMeetingBodySchema = z.object({
   language: z.string().trim().max(32).optional(),
   context: z.string().trim().max(64).optional(),
   summary: z.string().trim().max(10000).optional(),
+  status: z.enum([MEETING_STATUSES.UPLOADING, MEETING_STATUSES.PROCESSING, MEETING_STATUSES.COMPLETED, MEETING_STATUSES.FAILED]).optional(),
   startedAt: z.coerce.date().optional(),
   endedAt: z.coerce.date().optional(),
 }).refine(

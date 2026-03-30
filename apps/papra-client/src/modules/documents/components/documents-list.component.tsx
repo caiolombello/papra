@@ -14,13 +14,13 @@ import {
 import { For, Match, Show, Switch } from 'solid-js';
 import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
 import { useI18n } from '@/modules/i18n/i18n.provider';
-import { cn } from '@/modules/shared/style/cn';
 import { DocumentTagsList } from '@/modules/tags/components/tag-list.component';
 import { Button } from '@/modules/ui/components/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/modules/ui/components/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/modules/ui/components/table';
-import { getDocumentIcon, getDocumentNameExtension, getDocumentNameWithoutExtension } from '../document.models';
+import { getDocumentNameExtension, getDocumentNameWithoutExtension } from '../document.models';
 import { DocumentManagementDropdown } from './document-management-dropdown.component';
+import { DocumentThumbnail } from './document-thumbnail.component';
 
 export const createdAtColumn: ColumnDef<Document> = {
   header: () => {
@@ -90,14 +90,7 @@ export const DocumentsPaginatedList: Component<{
         id: 'fileName',
         cell: data => (
           <div class="overflow-hidden flex gap-4 items-center">
-            <div class="bg-muted flex items-center justify-center p-2 rounded-lg">
-              <div
-                class={cn(
-                  getDocumentIcon({ document: data.row.original }),
-                  'size-6 text-primary',
-                )}
-              />
-            </div>
+            <DocumentThumbnail document={data.row.original} />
 
             <div class="flex-1 flex flex-col gap-1 truncate">
               <A

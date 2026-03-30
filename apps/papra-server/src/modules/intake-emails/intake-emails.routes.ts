@@ -164,10 +164,11 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
       const { email, 'attachments[]': attachments = [] } = context.req.valid('form');
       const fromAddress = email.from.address;
       const recipientsAddresses = getRecipientAddresses({ email });
+      const subject = email.subject ?? '';
 
       addLogContext({ fromAddress, recipientsAddresses });
 
-      logger.info({ attachmentsCount: attachments.length }, 'Received intake email ingestion request');
+      logger.info({ attachmentsCount: attachments.length, subject }, 'Received intake email ingestion request');
 
       if (!config.intakeEmails.isEnabled) {
         throw createError({
@@ -214,6 +215,7 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         fromAddress,
         recipientsAddresses,
         attachments,
+        subject,
         intakeEmailsRepository,
         createDocument,
       });

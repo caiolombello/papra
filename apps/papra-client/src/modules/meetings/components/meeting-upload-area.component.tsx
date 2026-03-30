@@ -7,7 +7,8 @@ import { queryClient } from '@/modules/shared/query/query-client';
 import { cn } from '@/modules/shared/style/cn';
 import { Button } from '@/modules/ui/components/button';
 import { createToast } from '@/modules/ui/components/sonner';
-import { uploadMeetingFile } from '../meetings.services';
+import { requestNotificationPermission } from '../composables/use-transcription-notifications';
+import { updateMeetingStatus, uploadMeetingFile } from '../meetings.services';
 
 const ACCEPTED_MEETING_TYPES = '.mp3,.mp4,.m4a,.wav,.webm,.ogg,.oga,.flac,.aac,.mov,.mkv,.mpeg,.mpga';
 
@@ -48,12 +49,13 @@ export const MeetingUploadArea: Component = () => {
       return;
     }
 
+    requestNotificationPermission();
     setTasks(tasks => [...tasks, ...valid.map(file => ({ file, status: 'pending' as const, progress: 0 }))]);
 
     for (const file of valid) {
       updateTask(file, { status: 'uploading' });
 
-      const [, error] = await safely(uploadMeetingFile({
+      const [result, error] = await safely(uploadMeetingFile({
         file,
         organizationId: params.organizationId,
         onProgress: (progress) => updateTask(file, { progress }),
@@ -65,6 +67,12 @@ export const MeetingUploadArea: Component = () => {
       } else {
         updateTask(file, { status: 'success', progress: 1 });
         createToast({ type: 'success', message: `${file.name} uploaded — transcription will start automatically` });
+
+        await safely(updateMeetingStatus({
+          organizationId: params.organizationId,
+          meetingId: result.meetingId,
+          status: 'processing',
+        }));
       }
     }
 
