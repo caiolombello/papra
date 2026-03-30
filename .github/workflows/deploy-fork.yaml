@@ -13,6 +13,7 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'papra-fork' }}
   EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
 
 jobs:
   build-and-deploy:
@@ -80,3 +81,11 @@ jobs:
             --comment "Deploy papra-fork ${{ steps.meta.outputs.image_tag }}"
 
           echo "::notice::Deployment command sent for image ${IMAGE}"
+
+      - name: Invalidate CloudFront cache
+        if: env.CLOUDFRONT_DISTRIBUTION_ID != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --paths "/*"
+          echo "::notice::CloudFront cache invalidated"
