@@ -19,6 +19,7 @@ import { createDocumentIsNotDeletedError } from './documents.errors';
 import { formatDocumentForApi, formatDocumentsForApi, isDocumentSizeLimitEnabled } from './documents.models';
 import { createDocumentsRepository } from './documents.repository';
 import { documentIdSchema } from './documents.schemas';
+import { getOrCreateThumbnail } from './document-thumbnail.service';
 import { createDocumentCreationUsecase, deleteAllTrashDocuments, deleteTrashDocument, enrichAndFormatDocumentForApi, enrichAndFormatDocumentsForApi, ensureDocumentExists, getDocumentOrThrow, restoreDocument, trashDocument, updateDocument } from './documents.usecases';
 
 export function registerDocumentsRoutes(context: RouteDefinitionContext) {
@@ -34,6 +35,7 @@ export function registerDocumentsRoutes(context: RouteDefinitionContext) {
   setupGetDocumentFileRoute(context);
   setupUpdateDocumentRoute(context);
   setupReplaceDocumentFileRoute(context);
+  setupGetDocumentThumbnailRoute(context);
 }
 
 function setupCreateDocumentRoute({ app, ...deps }: RouteDefinitionContext) {
@@ -251,6 +253,50 @@ function setupGetDocumentFileRoute({ app, db, documentsStorageService }: RouteDe
           'Content-Length': String(document.originalSize),
           'X-Content-Type-Options': 'nosniff',
           'X-Frame-Options': 'DENY',
+        },
+      );
+    },
+  );
+}
+
+function setupGetDocumentThumbnailRoute({ app, db, documentsStorageService }: RouteDefinitionContext) {
+  app.get(
+    '/api/organizations/:organizationId/documents/:documentId/thumbnail',
+    requireAuthentication({ apiKeyPermissions: ['documents:read'] }),
+    validateParams(z.object({
+      organizationId: organizationIdSchema,
+      documentId: documentIdSchema,
+    })),
+    async (context) => {
+      const { userId } = getUser({ context });
+      const { organizationId, documentId } = context.req.valid('param');
+
+      const documentsRepository = createDocumentsRepository({ db });
+      const organizationsRepository = createOrganizationsRepository({ db });
+
+      await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
+
+      const { document } = await getDocumentOrThrow({ documentId, documentsRepository, organizationId });
+
+      const result = await getOrCreateThumbnail({
+        storageKey: document.originalStorageKey,
+        mimeType: document.mimeType,
+        documentsStorageService,
+        fileEncryptionAlgorithm: document.fileEncryptionAlgorithm,
+        fileEncryptionKekVersion: document.fileEncryptionKekVersion,
+        fileEncryptionKeyWrapped: document.fileEncryptionKeyWrapped,
+      });
+
+      if (!result) {
+        return context.body(null, 404);
+      }
+
+      return context.body(
+        Readable.toWeb(result.thumbnailStream),
+        200,
+        {
+          'Content-Type': result.contentType,
+          'Cache-Control': 'private, max-age=86400',
         },
       );
     },
