@@ -14,10 +14,11 @@ import { Badge } from '@/modules/ui/components/badge';
 import { Button } from '@/modules/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
 import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
+import { createToast } from '@/modules/ui/components/sonner';
 import { searchOrganizationContent } from '@/modules/search/search.services';
 import { DocumentUploadArea } from '../components/document-upload-area.component';
 import { createdAtColumn, DocumentsPaginatedList, standardActionsColumn, tagsColumn } from '../components/documents-list.component';
-import { fetchOrganizationDocuments } from '../documents.services';
+import { fetchOrganizationDocuments, moveDocumentToFolder } from '../documents.services';
 
 export const DocumentsPage: Component = () => {
   const params = useParams();
@@ -187,15 +188,37 @@ export const DocumentsPage: Component = () => {
                 <Show when={!debouncedSearchQuery() && (foldersQuery.data?.folders?.length ?? 0) > 0}>
                   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-3 mb-4">
                     <For each={foldersQuery.data?.folders ?? []}>
-                      {folder => (
-                        <button
-                          class="flex items-center gap-2 px-3 py-2 rounded-lg border bg-card hover:bg-accent/30 transition-colors text-left"
-                          onClick={() => navigateToFolder(folder.id)}
-                        >
-                          <div class="i-tabler-folder text-primary size-5" />
-                          <span class="text-sm font-medium truncate">{folder.name}</span>
-                        </button>
-                      )}
+                      {folder => {
+                        const [isDragOver, setIsDragOver] = createSignal(false);
+                        return (
+                          <button
+                            class={cn(
+                              'flex items-center gap-2 px-3 py-2 rounded-lg border bg-card hover:bg-accent/30 transition-colors text-left',
+                              isDragOver() && 'ring-2 ring-primary bg-primary/10',
+                            )}
+                            onClick={() => navigateToFolder(folder.id)}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+                              setIsDragOver(true);
+                            }}
+                            onDragLeave={() => setIsDragOver(false)}
+                            onDrop={async (e) => {
+                              e.preventDefault();
+                              setIsDragOver(false);
+                              const docId = e.dataTransfer?.getData('application/x-papra-document-id');
+                              if (docId) {
+                                await moveDocumentToFolder({ documentId: docId, organizationId: params.organizationId, folderId: folder.id });
+                                await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'documents'] });
+                                createToast({ type: 'success', message: `Moved to ${folder.name}` });
+                              }
+                            }}
+                          >
+                            <div class={cn('size-5', isDragOver() ? 'i-tabler-folder-open text-primary' : 'i-tabler-folder text-primary')} />
+                            <span class="text-sm font-medium truncate">{folder.name}</span>
+                          </button>
+                        );
+                      }}
                     </For>
                   </div>
                 </Show>

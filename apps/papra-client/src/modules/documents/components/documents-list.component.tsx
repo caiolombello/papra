@@ -161,7 +161,18 @@ export const DocumentsPaginatedList: Component<{
               <Show when={table.getRowModel().rows?.length}>
                 <For each={table.getRowModel().rows}>
                   {row => (
-                    <TableRow data-state={row.getIsSelected() && 'selected'}>
+                    <TableRow
+                      data-state={row.getIsSelected() && 'selected'}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer?.setData('application/x-papra-document-id', row.original.id);
+                        e.dataTransfer?.setData('text/plain', row.original.name);
+                        if (e.dataTransfer) {
+                          e.dataTransfer.effectAllowed = 'move';
+                        }
+                      }}
+                      class="cursor-grab active:cursor-grabbing"
+                    >
                       <For each={row.getVisibleCells()}>
                         {cell => (
                           <TableCell>
