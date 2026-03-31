@@ -147,7 +147,7 @@ export const MeetingPage: Component = () => {
   }));
 
   const diarizeMutation = useMutation(() => ({
-    mutationFn: () => diarizeMeeting({ organizationId: params.organizationId, meetingId: params.meetingId }),
+    mutationFn: (speakersExpected?: number) => diarizeMeeting({ organizationId: params.organizationId, meetingId: params.meetingId, speakersExpected }),
     onSuccess: () => {
       createToast({ type: 'success', message: 'Speaker identification started. This may take several minutes.' });
       queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'meetings', params.meetingId] });
@@ -156,6 +156,17 @@ export const MeetingPage: Component = () => {
       createToast({ type: 'error', message: getErrorMessage({ error }) });
     },
   }));
+
+  const handleDiarize = async () => {
+    const input = prompt('Number of speakers (leave empty for auto-detect):');
+    if (input === null) return; // cancelled
+    const num = input.trim() ? Number.parseInt(input.trim(), 10) : undefined;
+    if (input.trim() && (Number.isNaN(num!) || num! < 2 || num! > 10)) {
+      createToast({ type: 'error', message: 'Enter a number between 2 and 10, or leave empty.' });
+      return;
+    }
+    diarizeMutation.mutate(num);
+  };
 
   const handleDelete = async () => {
     const isConfirmed = await confirm({
@@ -246,7 +257,7 @@ export const MeetingPage: Component = () => {
                       </Button>
                       <Button
                         variant="outline"
-                        onClick={() => diarizeMutation.mutate()}
+                        onClick={handleDiarize}
                         isLoading={diarizeMutation.isPending}
                       >
                         <div class="i-tabler-users size-4 mr-1.5" />

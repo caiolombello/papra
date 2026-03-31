@@ -225,13 +225,16 @@ export async function fetchMeetingStats({ organizationId }: { organizationId: st
 export async function diarizeMeeting({
   organizationId,
   meetingId,
+  speakersExpected,
 }: {
   organizationId: string;
   meetingId: string;
+  speakersExpected?: number;
 }) {
   return apiClient<{ message: string; meetingId: string }>({
     method: 'POST',
     path: `/api/organizations/${organizationId}/meetings/${meetingId}/diarize`,
+    body: { ...(speakersExpected ? { speakersExpected } : {}) },
   });
 }
 
