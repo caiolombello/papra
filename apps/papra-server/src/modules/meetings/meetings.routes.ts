@@ -35,6 +35,7 @@ export function registerMeetingsRoutes(context: RouteDefinitionContext) {
   setupDeleteMeetingRoute(context);
   setupMeetingPlaybackRoute(context);
   setupRetranscribeMeetingRoute(context);
+  setupDiarizeMeetingRoute(context);
   setupAddTagToMeetingRoute(context);
   setupRemoveTagFromMeetingRoute(context);
 }
@@ -454,6 +455,68 @@ function setupRetranscribeMeetingRoute({ app, db, config }: RouteDefinitionConte
       }
 
       return context.json({ message: 'Re-transcription scheduled', meetingId }, 202);
+    },
+  );
+}
+
+function setupDiarizeMeetingRoute({ app, db, config }: RouteDefinitionContext) {
+  app.post(
+    '/api/organizations/:organizationId/meetings/:meetingId/diarize',
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.DOCUMENTS.UPDATE] }),
+    validateParams(z.object({
+      organizationId: organizationIdSchema,
+      meetingId: meetingIdSchema,
+    })),
+    async (context) => {
+      const { userId } = getUser({ context });
+      const { organizationId, meetingId } = context.req.valid('param');
+
+      const organizationsRepository = createOrganizationsRepository({ db });
+      const meetingsRepository = createMeetingsRepository({ db });
+
+      await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
+
+      const { meeting } = await meetingsRepository.getMeetingById({ organizationId, meetingId });
+
+      if (!meeting) {
+        throw createError({ message: 'Meeting not found', code: 'meetings.not-found', statusCode: 404 });
+      }
+
+      if (!meeting.sourceStorageKey) {
+        throw createError({ message: 'Meeting has no audio source', code: 'meetings.no-audio-source', statusCode: 400 });
+      }
+
+      // Copy S3 object with diarize=true metadata to trigger worker with diarization
+      const bucketName = process.env.MEETINGS_SOURCE_STORAGE_BUCKET_NAME;
+      if (bucketName) {
+        const s3Config = config.documentsStorage.drivers.s3;
+        const s3Client = new S3Client({
+          region: s3Config.region,
+          endpoint: s3Config.endpoint,
+          forcePathStyle: s3Config.forcePathStyle,
+          credentials: {
+            accessKeyId: s3Config.accessKeyId,
+            secretAccessKey: s3Config.secretAccessKey,
+          },
+        });
+
+        await s3Client.send(new CopyObjectCommand({
+          Bucket: bucketName,
+          CopySource: `${bucketName}/${meeting.sourceStorageKey}`,
+          Key: meeting.sourceStorageKey,
+          MetadataDirective: 'REPLACE',
+          Metadata: { diarize: 'true', meetingId },
+        }));
+
+        await meetingsRepository.updateMeetingStatus({ meetingId, organizationId, status: MEETING_STATUSES.PROCESSING });
+        await meetingsRepository.updateMeeting({
+          meetingId,
+          organizationId,
+          meeting: { statusDetail: 'Queued for speaker identification...' },
+        });
+      }
+
+      return context.json({ message: 'Speaker identification scheduled', meetingId }, 202);
     },
   );
 }

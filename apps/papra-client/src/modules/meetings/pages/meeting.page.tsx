@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/mod
 import { createToast } from '@/modules/ui/components/sonner';
 import { ShareLinkButton } from '@/modules/share-links/share-link-button.component';
 import { Tag as TagComponent } from '@/modules/tags/components/tag.component';
-import { addTagToMeeting, deleteMeeting, fetchMeeting, fetchMeetingPlaybackUrl, removeTagFromMeeting, retranscribeMeeting } from '../meetings.services';
+import { addTagToMeeting, deleteMeeting, diarizeMeeting, fetchMeeting, fetchMeetingPlaybackUrl, removeTagFromMeeting, retranscribeMeeting } from '../meetings.services';
 
 function formatDurationFromMs(startedAtMs?: number | null, endedAtMs?: number | null) {
   if (startedAtMs == null && endedAtMs == null) {
@@ -146,6 +146,17 @@ export const MeetingPage: Component = () => {
     },
   }));
 
+  const diarizeMutation = useMutation(() => ({
+    mutationFn: () => diarizeMeeting({ organizationId: params.organizationId, meetingId: params.meetingId }),
+    onSuccess: () => {
+      createToast({ type: 'success', message: 'Speaker identification started. This may take several minutes.' });
+      queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'meetings', params.meetingId] });
+    },
+    onError: (error) => {
+      createToast({ type: 'error', message: getErrorMessage({ error }) });
+    },
+  }));
+
   const handleDelete = async () => {
     const isConfirmed = await confirm({
       title: t('meetings.delete.confirm.title'),
@@ -232,6 +243,14 @@ export const MeetingPage: Component = () => {
                       >
                         <div class="i-tabler-refresh size-4 mr-1.5" />
                         Re-transcribe
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => diarizeMutation.mutate()}
+                        isLoading={diarizeMutation.isPending}
+                      >
+                        <div class="i-tabler-users size-4 mr-1.5" />
+                        Identify Speakers
                       </Button>
                     </Show>
                     <ShareLinkButton

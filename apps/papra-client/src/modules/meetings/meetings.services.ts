@@ -222,6 +222,19 @@ export async function fetchMeetingStats({ organizationId }: { organizationId: st
   return { stats };
 }
 
+export async function diarizeMeeting({
+  organizationId,
+  meetingId,
+}: {
+  organizationId: string;
+  meetingId: string;
+}) {
+  return apiClient<{ message: string; meetingId: string }>({
+    method: 'POST',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}/diarize`,
+  });
+}
+
 export async function retranscribeMeeting({
   organizationId,
   meetingId,
