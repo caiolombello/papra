@@ -260,7 +260,7 @@ export const SharedResourcePage: Component = () => {
                         <Show when={meeting().summary}>
                           <CardContent>
                             <h3 class="text-sm font-medium mb-2 text-muted-foreground">Summary</h3>
-                            <p class="text-sm leading-6">{meeting().summary}</p>
+                            <p class="text-sm leading-6 whitespace-pre-wrap">{meeting().summary}</p>
                           </CardContent>
                         </Show>
                       </Card>
