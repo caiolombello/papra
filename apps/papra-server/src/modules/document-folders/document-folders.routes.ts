@@ -23,7 +23,7 @@ export function registerDocumentFoldersRoutes(context: RouteDefinitionContext) {
 function setupListFoldersRoute({ app, db }: RouteDefinitionContext) {
   app.get(
     '/api/organizations/:organizationId/folders',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: ['documents:read', 'documents:create', 'documents:update', 'documents:delete'] }),
     validateParams(z.object({ organizationId: organizationIdSchema })),
     validateQuery(z.object({
       parentId: z.string().optional(),
@@ -51,7 +51,7 @@ function setupListFoldersRoute({ app, db }: RouteDefinitionContext) {
 function setupGetFolderRoute({ app, db }: RouteDefinitionContext) {
   app.get(
     '/api/organizations/:organizationId/folders/:folderId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: ['documents:read', 'documents:create', 'documents:update', 'documents:delete'] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       folderId: folderIdSchema,
@@ -81,7 +81,7 @@ function setupGetFolderRoute({ app, db }: RouteDefinitionContext) {
 function setupCreateFolderRoute({ app, db }: RouteDefinitionContext) {
   app.post(
     '/api/organizations/:organizationId/folders',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: ['documents:read', 'documents:create', 'documents:update', 'documents:delete'] }),
     validateParams(z.object({ organizationId: organizationIdSchema })),
     validateJsonBody(z.object({
       name: z.string().trim().min(1).max(256),
@@ -114,7 +114,7 @@ function setupCreateFolderRoute({ app, db }: RouteDefinitionContext) {
 function setupRenameFolderRoute({ app, db }: RouteDefinitionContext) {
   app.patch(
     '/api/organizations/:organizationId/folders/:folderId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: ['documents:read', 'documents:create', 'documents:update', 'documents:delete'] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       folderId: folderIdSchema,
@@ -146,7 +146,7 @@ function setupRenameFolderRoute({ app, db }: RouteDefinitionContext) {
 function setupDeleteFolderRoute({ app, db }: RouteDefinitionContext) {
   app.delete(
     '/api/organizations/:organizationId/folders/:folderId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: ['documents:read', 'documents:create', 'documents:update', 'documents:delete'] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       folderId: folderIdSchema,
