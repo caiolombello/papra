@@ -8,12 +8,12 @@ import { Card, CardContent } from '@/modules/ui/components/card';
 import { createToast } from '@/modules/ui/components/sonner';
 import { listShareLinks, revokeShareLink } from '../share-links.services';
 
-function formatDate(ts: number) {
+function formatDate(ts: number | string) {
   return new Date(ts).toLocaleString();
 }
 
-function timeUntil(ts: number) {
-  const diff = ts - Date.now();
+function timeUntil(ts: number | string) {
+  const diff = new Date(ts).getTime() - Date.now();
   if (diff <= 0) return 'Expired';
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(hours / 24);
@@ -23,10 +23,14 @@ function timeUntil(ts: number) {
   return `${minutes}m left`;
 }
 
-function getLinkStatus(link: { isRevoked: boolean; expiresAt: number; maxViews: number | null; viewCount: number }) {
+function isLinkActive(link: { isRevoked: boolean; isExpired?: boolean; isMaxViewsReached?: boolean }) {
+  return !link.isRevoked && !link.isExpired && !link.isMaxViewsReached;
+}
+
+function getLinkStatus(link: { isRevoked: boolean; isExpired?: boolean; isMaxViewsReached?: boolean }) {
   if (link.isRevoked) return { label: 'Revoked', variant: 'destructive' as const };
-  if (Date.now() > link.expiresAt) return { label: 'Expired', variant: 'secondary' as const };
-  if (link.maxViews !== null && link.viewCount >= link.maxViews) return { label: 'Max views', variant: 'secondary' as const };
+  if (link.isExpired) return { label: 'Expired', variant: 'secondary' as const };
+  if (link.isMaxViewsReached) return { label: 'Max views', variant: 'secondary' as const };
   return { label: 'Active', variant: 'default' as const };
 }
 
@@ -50,8 +54,8 @@ export const ShareLinksManagementPage: Component = () => {
     },
   }));
 
-  const activeLinks = () => (query.data?.links ?? []).filter(l => !l.isRevoked && Date.now() <= l.expiresAt && (l.maxViews === null || l.viewCount < l.maxViews));
-  const inactiveLinks = () => (query.data?.links ?? []).filter(l => l.isRevoked || Date.now() > l.expiresAt || (l.maxViews !== null && l.viewCount >= l.maxViews));
+  const activeLinks = () => (query.data?.links ?? []).filter(isLinkActive);
+  const inactiveLinks = () => (query.data?.links ?? []).filter(l => !isLinkActive(l));
 
   return (
     <div class="p-6 max-w-screen-lg mx-auto mt-4">
