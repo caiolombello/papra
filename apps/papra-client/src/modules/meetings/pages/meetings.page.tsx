@@ -11,14 +11,17 @@ import { cn } from '@/modules/shared/style/cn';
 import { queryClient } from '@/modules/shared/query/query-client';
 import { useDebounce } from '@/modules/shared/utils/timing';
 import { Tag as TagComponent } from '@/modules/tags/components/tag.component';
+import { useConfirmModal } from '@/modules/shared/confirm';
 import { Badge } from '@/modules/ui/components/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/modules/ui/components/dropdown-menu';
 import { EmptyState } from '@/modules/ui/components/empty';
 import { Button } from '@/modules/ui/components/button';
+import { createToast } from '@/modules/ui/components/sonner';
 import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
 import { MeetingUploadArea } from '../components/meeting-upload-area.component';
 import { trackMeetingsForNotifications } from '../composables/use-transcription-notifications';
-import { fetchOrganizationMeetings, retranscribeMeeting, searchOrganizationMeetings } from '../meetings.services';
+import { deleteMeeting, diarizeMeeting, fetchOrganizationMeetings, retranscribeMeeting, searchOrganizationMeetings } from '../meetings.services';
 
 function MeetingStatusBadge(props: { status?: string; statusDetail?: string | null }) {
   return (
@@ -38,6 +41,67 @@ function MeetingStatusBadge(props: { status?: string; statusDetail?: string | nu
     </Show>
   );
 }
+
+const MeetingActionsDropdown: Component<{ meeting: Meeting; organizationId: string }> = (props) => {
+  const { confirm } = useConfirmModal();
+
+  const handleRetranscribe = async (e: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+    await retranscribeMeeting({ organizationId: props.organizationId, meetingId: props.meeting.id });
+    await queryClient.invalidateQueries({ queryKey: ['organizations', props.organizationId, 'meetings'] });
+    createToast({ type: 'success', message: 'Re-transcription scheduled' });
+  };
+
+  const handleDiarize = async (e: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+    await diarizeMeeting({ organizationId: props.organizationId, meetingId: props.meeting.id });
+    await queryClient.invalidateQueries({ queryKey: ['organizations', props.organizationId, 'meetings'] });
+    createToast({ type: 'success', message: 'Speaker identification started' });
+  };
+
+  const handleDelete = async (e: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const confirmed = await confirm({
+      title: 'Delete meeting?',
+      message: `Delete "${props.meeting.title}"? This cannot be undone.`,
+      confirmButton: { text: 'Delete', variant: 'destructive' },
+    });
+    if (confirmed) {
+      await deleteMeeting({ organizationId: props.organizationId, meetingId: props.meeting.id });
+      await queryClient.invalidateQueries({ queryKey: ['organizations', props.organizationId, 'meetings'] });
+      createToast({ type: 'success', message: 'Meeting deleted' });
+    }
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        as={(triggerProps: any) => (
+          <Button variant="ghost" size="icon" class="size-7" {...triggerProps} onClick={(e: Event) => { e.stopPropagation(); e.preventDefault(); (triggerProps as any).onClick?.(e); }}>
+            <div class="i-tabler-dots-vertical size-4" />
+          </Button>
+        )}
+      />
+      <DropdownMenuContent class="w-48">
+        <DropdownMenuItem class="cursor-pointer" onClick={handleRetranscribe}>
+          <div class="i-tabler-refresh size-4 mr-2" />
+          Re-transcribe
+        </DropdownMenuItem>
+        <DropdownMenuItem class="cursor-pointer" onClick={handleDiarize}>
+          <div class="i-tabler-users size-4 mr-2" />
+          Identify Speakers
+        </DropdownMenuItem>
+        <DropdownMenuItem class="cursor-pointer text-red" onClick={handleDelete}>
+          <div class="i-tabler-trash size-4 mr-2" />
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
 export const MeetingsPage: Component = () => {
   const params = useParams();
@@ -150,6 +214,7 @@ export const MeetingsPage: Component = () => {
                           <Show when={meeting.language}>
                             <Badge variant="outline">{meeting.language}</Badge>
                           </Show>
+                          <MeetingActionsDropdown meeting={meeting} organizationId={params.organizationId} />
                         </div>
                       </div>
                     </CardHeader>
