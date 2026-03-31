@@ -467,9 +467,13 @@ function setupDiarizeMeetingRoute({ app, db, config }: RouteDefinitionContext) {
       organizationId: organizationIdSchema,
       meetingId: meetingIdSchema,
     })),
+    validateJsonBody(z.object({
+      speakersExpected: z.number().int().min(2).max(10).optional(),
+    })),
     async (context) => {
       const { userId } = getUser({ context });
       const { organizationId, meetingId } = context.req.valid('param');
+      const { speakersExpected } = context.req.valid('json');
 
       const organizationsRepository = createOrganizationsRepository({ db });
       const meetingsRepository = createMeetingsRepository({ db });
@@ -505,7 +509,11 @@ function setupDiarizeMeetingRoute({ app, db, config }: RouteDefinitionContext) {
           CopySource: `${bucketName}/${meeting.sourceStorageKey}`,
           Key: meeting.sourceStorageKey,
           MetadataDirective: 'REPLACE',
-          Metadata: { diarize: 'true', meetingId },
+          Metadata: {
+            diarize: 'true',
+            meetingId,
+            ...(speakersExpected ? { 'speakers-expected': String(speakersExpected) } : {}),
+          },
         }));
 
         await meetingsRepository.updateMeetingStatus({ meetingId, organizationId, status: MEETING_STATUSES.PROCESSING });
