@@ -20,6 +20,7 @@ export const meetingsTable = sqliteTable('meetings', {
   context: text('context'),
   summary: text('summary'),
   status: text('status').notNull().default('completed'),
+  statusDetail: text('status_detail'),
   audioDurationSeconds: real('audio_duration_seconds'),
   startedAt: integer('started_at', { mode: 'timestamp_ms' }),
   endedAt: integer('ended_at', { mode: 'timestamp_ms' }),

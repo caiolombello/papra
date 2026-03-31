@@ -39,6 +39,7 @@ export const updateMeetingBodySchema = z.object({
   context: z.string().trim().max(64).optional(),
   summary: z.string().trim().max(10000).optional(),
   status: z.enum([MEETING_STATUSES.UPLOADING, MEETING_STATUSES.PROCESSING, MEETING_STATUSES.COMPLETED, MEETING_STATUSES.FAILED]).optional(),
+  statusDetail: z.string().max(256).nullable().optional(),
   startedAt: z.coerce.date().optional(),
   endedAt: z.coerce.date().optional(),
 }).refine(

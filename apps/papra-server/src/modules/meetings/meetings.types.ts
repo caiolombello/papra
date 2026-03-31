@@ -35,6 +35,7 @@ export type MeetingForUpdate = {
   context?: string;
   summary?: string;
   status?: string;
+  statusDetail?: string | null;
   audioDurationSeconds?: number;
   startedAt?: Date;
   endedAt?: Date;

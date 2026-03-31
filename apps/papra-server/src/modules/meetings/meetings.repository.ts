@@ -199,6 +199,7 @@ async function updateMeeting({
       startedAt: meeting.startedAt,
       endedAt: meeting.endedAt,
       ...(meeting.status !== undefined && { status: meeting.status }),
+      ...(meeting.statusDetail !== undefined && { statusDetail: meeting.statusDetail }),
       updatedAt: new Date(),
     })
     .where(and(
@@ -305,6 +306,7 @@ async function upsertMeetingFromIngestion({
       startedAt: meeting.startedAt,
       endedAt: meeting.endedAt,
       status: MEETING_STATUSES.COMPLETED,
+      statusDetail: null,
     },
     db,
   });

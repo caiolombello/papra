@@ -36,6 +36,7 @@ export type Meeting = {
   context?: string;
   summary?: string;
   status?: string;
+  statusDetail?: string | null;
   startedAt?: Date;
   endedAt?: Date;
   createdAt: Date;

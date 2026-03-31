@@ -19,7 +19,7 @@ import { MeetingUploadArea } from '../components/meeting-upload-area.component';
 import { trackMeetingsForNotifications } from '../composables/use-transcription-notifications';
 import { fetchOrganizationMeetings, searchOrganizationMeetings } from '../meetings.services';
 
-function MeetingStatusBadge(props: { status?: string }) {
+function MeetingStatusBadge(props: { status?: string; statusDetail?: string | null }) {
   return (
     <Show when={props.status && props.status !== 'completed'}>
       <Badge
@@ -32,7 +32,7 @@ function MeetingStatusBadge(props: { status?: string }) {
         <Show when={props.status === 'failed'}>
           <div class="i-tabler-alert-circle size-3" />
         </Show>
-        {props.status === 'uploading' ? 'Uploading...' : props.status === 'processing' ? 'Transcribing...' : 'Failed'}
+        {props.statusDetail || (props.status === 'uploading' ? 'Uploading...' : props.status === 'processing' ? 'Transcribing...' : 'Failed')}
       </Badge>
     </Show>
   );
@@ -67,7 +67,7 @@ export const MeetingsPage: Component = () => {
       return result;
     },
     placeholderData: keepPreviousData,
-    refetchInterval: getPendingFlag() ? 10_000 : false,
+    refetchInterval: getPendingFlag() ? 5_000 : false,
   }));
 
   return (
@@ -142,7 +142,7 @@ export const MeetingsPage: Component = () => {
                           </CardDescription>
                         </div>
                         <div class="flex flex-wrap items-center gap-2 justify-end">
-                          <MeetingStatusBadge status={meeting.status} />
+                          <MeetingStatusBadge status={meeting.status} statusDetail={meeting.statusDetail} />
                           <For each={meeting.tags ?? []}>
                             {tag => <TagComponent name={tag.name} color={tag.color} />}
                           </For>
@@ -158,7 +158,7 @@ export const MeetingsPage: Component = () => {
                       </Show>
                       <Show when={isCompleted()} fallback={
                         <div class="text-sm text-muted-foreground italic">
-                          {meeting.status === 'uploading' ? 'Uploading file...' : meeting.status === 'failed' ? 'Transcription failed' : 'Transcription in progress...'}
+                          {meeting.statusDetail || (meeting.status === 'uploading' ? 'Uploading file...' : meeting.status === 'failed' ? 'Transcription failed' : 'Transcription in progress...')}
                         </div>
                       }>
                         <div class="text-sm leading-6 line-clamp-4">
