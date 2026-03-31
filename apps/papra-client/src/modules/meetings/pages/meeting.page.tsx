@@ -11,6 +11,7 @@ import { Badge } from '@/modules/ui/components/badge';
 import { Button } from '@/modules/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
 import { createToast } from '@/modules/ui/components/sonner';
+import { ShareLinkButton } from '@/modules/share-links/share-link-button.component';
 import { Tag as TagComponent } from '@/modules/tags/components/tag.component';
 import { addTagToMeeting, deleteMeeting, fetchMeeting, fetchMeetingPlaybackUrl, removeTagFromMeeting, retranscribeMeeting } from '../meetings.services';
 
@@ -233,6 +234,11 @@ export const MeetingPage: Component = () => {
                         Re-transcribe
                       </Button>
                     </Show>
+                    <ShareLinkButton
+                      organizationId={params.organizationId}
+                      resourceType="meeting"
+                      resourceId={meeting.id}
+                    />
                     <Button
                       variant="destructive"
                       onClick={handleDelete}

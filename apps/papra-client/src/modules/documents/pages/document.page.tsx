@@ -21,6 +21,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/module
 import { Separator } from '@/modules/ui/components/separator';
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from '@/modules/ui/components/tabs';
 import { promptUploadFiles } from '@/modules/shared/files/upload';
+import { ShareLinkButton } from '@/modules/share-links/share-link-button.component';
 import { DocumentContentEditionPanel } from '../components/document-content-edition-panel.component';
 import { DocumentDatePicker } from '../components/document-date-picker.component';
 import { DocumentPreview } from '../components/document-preview.component';
@@ -261,6 +262,12 @@ export const DocumentPage: Component = () => {
                       <div class="i-tabler-replace size-4 mr-2" />
                       Replace file
                     </Button>
+
+                    <ShareLinkButton
+                      organizationId={params.organizationId}
+                      resourceType="document"
+                      resourceId={getDocument().id}
+                    />
 
                     <DocumentOpenWithDropdown document={getDocument()} organizationId={params.organizationId} />
 
