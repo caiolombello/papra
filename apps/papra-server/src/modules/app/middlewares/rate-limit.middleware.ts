@@ -3,7 +3,7 @@ import { createError } from '../../shared/errors/errors';
 
 const windowMs = 60_000; // 1 minute
 const maxRequests = 120; // per window per IP
-const authMaxRequests = 10; // stricter for auth endpoints
+const authMaxRequests = 30; // stricter for auth endpoints (OAuth flows use multiple requests)
 
 const hitCounts = new Map<string, { count: number; resetAt: number }>();
 
