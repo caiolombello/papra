@@ -8,6 +8,7 @@ import { useI18n } from '@/modules/i18n/i18n.provider';
 import { createParamSynchronizedPagination } from '@/modules/shared/pagination/query-synchronized-pagination';
 import { createParamSynchronizedSignal } from '@/modules/shared/signals/params';
 import { cn } from '@/modules/shared/style/cn';
+import { queryClient } from '@/modules/shared/query/query-client';
 import { useDebounce } from '@/modules/shared/utils/timing';
 import { Tag as TagComponent } from '@/modules/tags/components/tag.component';
 import { Badge } from '@/modules/ui/components/badge';
@@ -17,7 +18,7 @@ import { Button } from '@/modules/ui/components/button';
 import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
 import { MeetingUploadArea } from '../components/meeting-upload-area.component';
 import { trackMeetingsForNotifications } from '../composables/use-transcription-notifications';
-import { fetchOrganizationMeetings, searchOrganizationMeetings } from '../meetings.services';
+import { fetchOrganizationMeetings, retranscribeMeeting, searchOrganizationMeetings } from '../meetings.services';
 
 function MeetingStatusBadge(props: { status?: string; statusDetail?: string | null }) {
   return (
@@ -157,8 +158,24 @@ export const MeetingsPage: Component = () => {
                         <div class="text-sm text-muted-foreground truncate">{meeting.sourceName}</div>
                       </Show>
                       <Show when={isCompleted()} fallback={
-                        <div class="text-sm text-muted-foreground italic">
-                          {meeting.statusDetail || (meeting.status === 'uploading' ? 'Uploading file...' : meeting.status === 'failed' ? 'Transcription failed' : 'Transcription in progress...')}
+                        <div class="flex items-center justify-between gap-2">
+                          <div class="text-sm text-muted-foreground italic flex-1">
+                            {meeting.statusDetail || (meeting.status === 'uploading' ? 'Uploading file...' : meeting.status === 'failed' ? 'Transcription failed' : 'Transcription in progress...')}
+                          </div>
+                          <Show when={meeting.status === 'failed'}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                await retranscribeMeeting({ organizationId: params.organizationId, meetingId: meeting.id });
+                                await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'meetings'] });
+                              }}
+                            >
+                              <div class="i-tabler-refresh size-3.5 mr-1" />
+                              Retry
+                            </Button>
+                          </Show>
                         </div>
                       }>
                         <div class="text-sm leading-6 line-clamp-4">
@@ -170,7 +187,7 @@ export const MeetingsPage: Component = () => {
                 );
 
                 return (
-                  <Show when={isCompleted()} fallback={<div class="block">{cardContent()}</div>}>
+                  <Show when={isCompleted() || meeting.status === 'failed'} fallback={<div class="block">{cardContent()}</div>}>
                     <A href={`/organizations/${params.organizationId}/meetings/${meeting.id}`} class="block">
                       {cardContent()}
                     </A>
