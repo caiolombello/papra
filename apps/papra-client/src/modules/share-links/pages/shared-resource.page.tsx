@@ -156,25 +156,78 @@ export const SharedResourcePage: Component = () => {
               <Match when={resource() && 'type' in resource()! && (resource() as any).type === 'document'}>
                 {(() => {
                   const doc = () => (resource() as { type: 'document'; document: SharedDocument }).document;
+                  const fileUrl = () => {
+                    const base = `/api/share/${params.token}/file`;
+                    return password() ? `${base}?password=${encodeURIComponent(password())}` : base;
+                  };
+                  const isPdf = () => doc().mimeType === 'application/pdf';
+                  const isImage = () => doc().mimeType.startsWith('image/');
+                  const [showText, setShowText] = createSignal(false);
+
                   return (
                     <>
                       <Card>
                         <CardHeader>
-                          <div class="flex items-center gap-3">
-                            <div class="i-tabler-file-text size-8 text-primary" />
-                            <div>
-                              <CardTitle>{doc().name}</CardTitle>
-                              <div class="text-sm text-muted-foreground mt-1">
-                                {formatFileSize(doc().originalSize)} &middot; {formatDate(doc().createdAt)}
+                          <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                              <div class="i-tabler-file-text size-8 text-primary" />
+                              <div>
+                                <CardTitle>{doc().name}</CardTitle>
+                                <div class="text-sm text-muted-foreground mt-1">
+                                  {formatFileSize(doc().originalSize)} &middot; {formatDate(doc().createdAt)}
+                                </div>
                               </div>
+                            </div>
+                            <div class="flex gap-2">
+                              <Show when={doc().content}>
+                                <Button variant="outline" size="sm" onClick={() => setShowText(!showText())}>
+                                  <div class={`size-4 mr-2 ${showText() ? 'i-tabler-file' : 'i-tabler-file-text'}`} />
+                                  {showText() ? 'Preview' : 'Text'}
+                                </Button>
+                              </Show>
+                              <Button variant="outline" size="sm" as="a" href={fileUrl()} download={doc().name}>
+                                <div class="i-tabler-download size-4 mr-2" />
+                                Download
+                              </Button>
                             </div>
                           </div>
                         </CardHeader>
-                        <Show when={doc().content}>
-                          <CardContent>
+                        <CardContent>
+                          <Show when={showText()}>
                             <pre class="whitespace-pre-wrap text-sm leading-7 font-sans">{doc().content}</pre>
-                          </CardContent>
-                        </Show>
+                          </Show>
+                          <Show when={!showText()}>
+                            <Show when={isPdf()}>
+                              <iframe
+                                src={fileUrl()}
+                                class="w-full rounded border"
+                                style={{ height: '80vh' }}
+                                title={doc().name}
+                              />
+                            </Show>
+                            <Show when={isImage()}>
+                              <img
+                                src={fileUrl()}
+                                alt={doc().name}
+                                class="max-w-full rounded border"
+                              />
+                            </Show>
+                            <Show when={!isPdf() && !isImage()}>
+                              <Show when={doc().content} fallback={
+                                <div class="text-center py-12 text-muted-foreground">
+                                  <div class="i-tabler-file size-12 mx-auto mb-4 opacity-40" />
+                                  <p>No preview available for this file type.</p>
+                                  <Button variant="outline" class="mt-4" as="a" href={fileUrl()} download={doc().name}>
+                                    <div class="i-tabler-download size-4 mr-2" />
+                                    Download file
+                                  </Button>
+                                </div>
+                              }>
+                                <pre class="whitespace-pre-wrap text-sm leading-7 font-sans">{doc().content}</pre>
+                              </Show>
+                            </Show>
+                          </Show>
+                        </CardContent>
                       </Card>
                     </>
                   );

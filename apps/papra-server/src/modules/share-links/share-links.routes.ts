@@ -18,6 +18,7 @@ export function registerShareLinksRoutes(context: RouteDefinitionContext) {
   setupListShareLinksRoute(context);
   setupRevokeShareLinkRoute(context);
   setupAccessShareLinkRoute(context);
+  setupShareLinkFileRoute(context);
 }
 
 function setupCreateShareLinkRoute({ app, db }: RouteDefinitionContext) {
@@ -249,6 +250,76 @@ function setupAccessShareLinkRoute({ app, db, documentsStorageService }: RouteDe
       }
 
       throw createError({ message: 'Unknown resource type', code: 'share.unknown_type', statusCode: 400 });
+    },
+  );
+}
+
+function setupShareLinkFileRoute({ app, db, documentsStorageService }: RouteDefinitionContext) {
+  // Public endpoint — serves the actual file for document share links
+  app.get(
+    '/api/share/:token/file',
+    validateParams(z.object({ token: z.string() })),
+    async (context) => {
+      const { token } = context.req.valid('param');
+      const password = context.req.query('password') ?? undefined;
+
+      const shareLinksRepository = createShareLinksRepository({ db });
+      const { shareLink } = await shareLinksRepository.getShareLinkByToken({ token });
+
+      if (!shareLink) {
+        throw createError({ message: 'Share link not found', code: 'share.not_found', statusCode: 404 });
+      }
+
+      if (shareLink.isRevoked) {
+        throw createError({ message: 'This share link has been revoked', code: 'share.revoked', statusCode: 410 });
+      }
+
+      if (new Date() > shareLink.expiresAt) {
+        throw createError({ message: 'This share link has expired', code: 'share.expired', statusCode: 410 });
+      }
+
+      if (shareLink.maxViews !== null && shareLink.viewCount >= shareLink.maxViews) {
+        throw createError({ message: 'Max views reached', code: 'share.max_views_reached', statusCode: 410 });
+      }
+
+      if (shareLink.passwordHash) {
+        if (!password || !verifyPassword(password, shareLink.passwordHash)) {
+          throw createError({ message: 'Password required or incorrect', code: 'share.wrong_password', statusCode: 403 });
+        }
+      }
+
+      if (shareLink.resourceType !== 'document') {
+        throw createError({ message: 'File download only available for documents', code: 'share.not_document', statusCode: 400 });
+      }
+
+      const documentsRepository = createDocumentsRepository({ db });
+      const { document } = await documentsRepository.getDocumentById({
+        documentId: shareLink.resourceId,
+        organizationId: shareLink.organizationId,
+      });
+
+      if (!document) {
+        throw createError({ message: 'Document no longer exists', code: 'share.resource_gone', statusCode: 410 });
+      }
+
+      const { fileStream } = await documentsStorageService.getFileStream({
+        storageKey: document.originalStorageKey,
+        fileEncryptionAlgorithm: document.fileEncryptionAlgorithm,
+        fileEncryptionKekVersion: document.fileEncryptionKekVersion,
+        fileEncryptionKeyWrapped: document.fileEncryptionKeyWrapped,
+      });
+
+      return context.body(
+        Readable.toWeb(fileStream),
+        200,
+        {
+          'Content-Type': document.mimeType,
+          'Content-Length': String(document.originalSize),
+          'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(document.name)}`,
+          'X-Content-Type-Options': 'nosniff',
+          'Cache-Control': 'private, no-store',
+        },
+      );
     },
   );
 }
