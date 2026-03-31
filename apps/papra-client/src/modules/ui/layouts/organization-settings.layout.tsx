@@ -35,6 +35,11 @@ export const OrganizationSettingsLayout: ParentComponent = (props) => {
       icon: 'i-tabler-lock',
     },
     {
+      label: 'Shared Links',
+      href: `/organizations/${params.organizationId}/settings/shared-links`,
+      icon: 'i-tabler-share',
+    },
+    {
       label: 'Audit Log',
       href: `/organizations/${params.organizationId}/settings/audit-log`,
       icon: 'i-tabler-shield-check',

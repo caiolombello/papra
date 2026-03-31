@@ -46,6 +46,7 @@ import { UpdateTaggingRulePage } from './modules/tagging-rules/pages/update-tagg
 import { TagsPage } from './modules/tags/pages/tags.page';
 import { PdfPasswordRulesPage } from './modules/pdf-password-rules/pages/pdf-password-rules.page';
 import { AuditLogPage } from './modules/security-audit/pages/audit-log.page';
+import { ShareLinksManagementPage } from './modules/share-links/pages/share-links-management.page';
 import { SharedResourcePage } from './modules/share-links/pages/shared-resource.page';
 import { OrganizationSettingsLayout } from './modules/ui/layouts/organization-settings.layout';
 import { OrganizationLayout } from './modules/ui/layouts/organization.layout';
@@ -239,6 +240,10 @@ export const routes: RouteDefinition[] = [
               {
                 path: '/audit-log',
                 component: AuditLogPage,
+              },
+              {
+                path: '/shared-links',
+                component: ShareLinksManagementPage,
               },
             ],
           },
