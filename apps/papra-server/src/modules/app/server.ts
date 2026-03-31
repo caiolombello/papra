@@ -22,7 +22,7 @@ export function createServer(dependencies: GlobalDependencies) {
   app.use(createRateLimitMiddleware());
   app.use(secureHeaders({
     strictTransportSecurity: 'max-age=63072000; includeSubDomains; preload',
-    xFrameOptions: 'DENY',
+    xFrameOptions: 'SAMEORIGIN',
     permissionsPolicy: {
       camera: [],
       microphone: [],
