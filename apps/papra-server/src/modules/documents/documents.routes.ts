@@ -13,6 +13,7 @@ import { getFileStreamFromMultipartForm } from '../shared/streams/file-upload';
 import { validateJsonBody, validateParams, validateQuery } from '../shared/validation/validation';
 import { createSubscriptionsRepository } from '../subscriptions/subscriptions.repository';
 import { createDocumentVersionsRepository } from '../document-versions/document-versions.repository';
+import { createAuditLogger } from '../security-audit/security-audit.service';
 import { createTagsRepository } from '../tags/tags.repository';
 import { searchOrganizationDocuments } from './document-search/document-search.usecase';
 import { createDocumentIsNotDeletedError } from './documents.errors';
@@ -234,6 +235,17 @@ function setupGetDocumentFileRoute({ app, db, documentsStorageService }: RouteDe
       await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
 
       const { document } = await getDocumentOrThrow({ documentId, documentsRepository, organizationId });
+
+      // Audit log document file access
+      const auditLogger = createAuditLogger({ db });
+      auditLogger.logFromContext(context, {
+        organizationId,
+        userId,
+        action: 'document.downloaded',
+        resourceType: 'document',
+        resourceId: documentId,
+        details: { documentName: document.name },
+      });
 
       const { fileStream } = await documentsStorageService.getFileStream({
         storageKey: document.originalStorageKey,

@@ -12,6 +12,7 @@ import { registerInvitationsRoutes } from '../invitations/invitations.routes';
 import { registerMeetingsRoutes } from '../meetings/meetings.routes';
 import { registerOrganizationsRoutes } from '../organizations/organizations.routes';
 import { registerPdfPasswordRulesRoutes } from '../pdf-password-rules/pdf-password-rules.routes';
+import { registerSecurityAuditRoutes } from '../security-audit/security-audit.routes';
 import { registerSubscriptionsRoutes } from '../subscriptions/subscriptions.routes';
 import { registerTaggingRulesRoutes } from '../tagging-rules/tagging-rules.routes';
 import { registerTagsRoutes } from '../tags/tags.routes';
@@ -42,5 +43,6 @@ export function registerRoutes(context: RouteDefinitionContext) {
   registerDocumentFoldersRoutes(context);
   registerDocumentVersionsRoutes(context);
   registerPdfPasswordRulesRoutes(context);
+  registerSecurityAuditRoutes(context);
   registerAdminRoutes(context);
 }
