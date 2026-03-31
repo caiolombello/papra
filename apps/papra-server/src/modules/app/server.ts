@@ -6,6 +6,7 @@ import { createApiKeyMiddleware } from '../api-keys/api-keys.middlewares';
 import { createLoggerMiddleware } from '../shared/logger/logger.middleware';
 import { createCorsMiddleware } from './middlewares/cors.middleware';
 import { registerErrorMiddleware } from './middlewares/errors.middleware';
+import { createRateLimitMiddleware } from './middlewares/rate-limit.middleware';
 import { createTimeoutMiddleware } from './middlewares/timeout.middleware';
 import { registerRoutes } from './server.routes';
 import { registerStaticAssetsRoutes } from './static-assets/static-assets.routes';
@@ -18,7 +19,16 @@ export function createServer(dependencies: GlobalDependencies) {
   app.use(createLoggerMiddleware({ config }));
   app.use(createCorsMiddleware({ config }));
   app.use(createTimeoutMiddleware({ config }));
-  app.use(secureHeaders());
+  app.use(createRateLimitMiddleware());
+  app.use(secureHeaders({
+    strictTransportSecurity: 'max-age=63072000; includeSubDomains; preload',
+    xFrameOptions: 'DENY',
+    permissionsPolicy: {
+      camera: [],
+      microphone: [],
+      geolocation: [],
+    },
+  }));
 
   registerErrorMiddleware({ app });
   registerStaticAssetsRoutes({ app, config });
