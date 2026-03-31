@@ -316,30 +316,44 @@ export const MeetingPage: Component = () => {
                     when={(meeting.chunks?.length ?? 0) > 0}
                     fallback={<div class="text-sm text-muted-foreground">{t('meetings.details.transcript.empty')}</div>}
                   >
-                    <For each={meeting.chunks ?? []}>
-                      {chunk => (
-                        <Card
-                          class={chunk.startedAtMs != null ? 'cursor-pointer hover:border-primary/40 transition-colors' : ''}
-                          onClick={() => handleChunkClick(chunk.startedAtMs)}
-                        >
-                          <CardHeader class="pb-3">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                              <div class="flex items-center gap-2">
-                                <Badge variant="outline">{chunk.speaker || t('meetings.details.transcript.unknown-speaker')}</Badge>
-                              </div>
-                              <Show when={formatDurationFromMs(chunk.startedAtMs, chunk.endedAtMs)}>
-                                <div class="text-xs text-muted-foreground">
-                                  {formatDurationFromMs(chunk.startedAtMs, chunk.endedAtMs)}
+                    {(() => {
+                      const hasSpeakers = meeting.chunks?.some(c => c.speaker && c.speaker !== 'unknown') ?? false;
+
+                      return hasSpeakers
+                        ? (
+                            <For each={meeting.chunks ?? []}>
+                              {chunk => (
+                                <Card
+                                  class={chunk.startedAtMs != null ? 'cursor-pointer hover:border-primary/40 transition-colors' : ''}
+                                  onClick={() => handleChunkClick(chunk.startedAtMs)}
+                                >
+                                  <CardHeader class="pb-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                      <Badge variant="outline">{chunk.speaker}</Badge>
+                                      <Show when={formatDurationFromMs(chunk.startedAtMs, chunk.endedAtMs)}>
+                                        <div class="text-xs text-muted-foreground">
+                                          {formatDurationFromMs(chunk.startedAtMs, chunk.endedAtMs)}
+                                        </div>
+                                      </Show>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div class="whitespace-pre-wrap text-sm leading-6">{chunk.content}</div>
+                                  </CardContent>
+                                </Card>
+                              )}
+                            </For>
+                          )
+                        : (
+                            <Card>
+                              <CardContent class="pt-6">
+                                <div class="whitespace-pre-wrap text-sm leading-6">
+                                  {meeting.chunks?.map(c => c.content).join(' ')}
                                 </div>
-                              </Show>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <div class="whitespace-pre-wrap text-sm leading-6">{chunk.content}</div>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </For>
+                              </CardContent>
+                            </Card>
+                          );
+                    })()}
                   </Show>
                 </div>
               </div>
