@@ -27,6 +27,7 @@ import { documentVersionsMigration } from './list/0024-document-versions.migrati
 import { meetingsAudioDurationMigration } from './list/0025-meetings-audio-duration.migration';
 import { meetingsStatusDetailMigration } from './list/0026-meetings-status-detail.migration';
 import { securityAuditLogMigration } from './list/0027-security-audit-log.migration';
+import { shareLinksMigration } from './list/0028-share-links.migration';
 
 export const migrations: Migration[] = [
   initialSchemaSetupMigration,
@@ -56,4 +57,5 @@ export const migrations: Migration[] = [
   meetingsAudioDurationMigration,
   meetingsStatusDetailMigration,
   securityAuditLogMigration,
+  shareLinksMigration,
 ];
