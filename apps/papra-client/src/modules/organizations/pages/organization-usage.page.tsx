@@ -100,6 +100,75 @@ export const OrganizationUsagePage: Component = () => {
                 </CardContent>
               </Card>
 
+              <h2 class="text-lg font-semibold mt-8 mb-2">Estimated Monthly Costs</h2>
+              <p class="text-muted-foreground mb-4">Based on current usage. Actual costs may vary.</p>
+
+              <Card>
+                <CardContent class="pt-6 flex flex-col gap-4">
+                  {(() => {
+                    const storageBytes = getData().usage.documentsStorage.used + (getData().usage.documentsStorage.deleted ?? 0);
+                    const storageGb = storageBytes / (1024 * 1024 * 1024);
+                    // S3 Standard sa-east-1: $0.0245/GB/month
+                    const s3Cost = storageGb * 0.0245;
+                    // DB + EC2 instance (c5.large on-demand sa-east-1): ~$62/month
+                    const ec2Cost = 62;
+                    // CloudFront: ~$0.085/GB transfer (first 10TB) + $0.0075/10K requests
+                    const cfEstimate = 2; // rough estimate for low traffic
+                    const meetingCost = meetingStatsQuery.data?.stats?.estimatedCostUsd ?? 0;
+                    const totalEstimate = s3Cost + ec2Cost + cfEstimate + meetingCost;
+
+                    return (
+                      <>
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <div class="font-medium text-sm">S3 Storage</div>
+                            <div class="text-xs text-muted-foreground">{formatBytes({ bytes: storageBytes, base: 1000 })} at $0.0245/GB/mo</div>
+                          </div>
+                          <div class="font-semibold">${s3Cost.toFixed(2)}</div>
+                        </div>
+
+                        <Separator />
+
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <div class="font-medium text-sm">EC2 (c5.large)</div>
+                            <div class="text-xs text-muted-foreground">Papra server + transcription worker</div>
+                          </div>
+                          <div class="font-semibold">${ec2Cost.toFixed(2)}</div>
+                        </div>
+
+                        <Separator />
+
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <div class="font-medium text-sm">CloudFront</div>
+                            <div class="text-xs text-muted-foreground">CDN, HTTPS, caching</div>
+                          </div>
+                          <div class="font-semibold">~${cfEstimate.toFixed(2)}</div>
+                        </div>
+
+                        <Separator />
+
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <div class="font-medium text-sm">Transcription (OpenAI)</div>
+                            <div class="text-xs text-muted-foreground">{meetingStatsQuery.data?.stats?.totalDurationMinutes ?? 0} minutes transcribed</div>
+                          </div>
+                          <div class="font-semibold">${meetingCost.toFixed(2)}</div>
+                        </div>
+
+                        <Separator />
+
+                        <div class="flex items-center justify-between pt-2">
+                          <div class="font-semibold">Estimated Total</div>
+                          <div class="text-xl font-bold">${totalEstimate.toFixed(2)}/mo</div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+
               <Show when={meetingStatsQuery.data}>
                 {getStats => (
                   <>
