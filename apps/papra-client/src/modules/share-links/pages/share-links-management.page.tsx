@@ -58,11 +58,11 @@ export const ShareLinksManagementPage: Component = () => {
   const inactiveLinks = () => (query.data?.links ?? []).filter(l => !isLinkActive(l));
 
   return (
-    <div class="p-6 max-w-screen-lg mx-auto mt-4">
-      <div class="border-b mb-6 pb-4">
-        <h1 class="text-xl font-bold">Shared Links</h1>
-        <p class="text-muted-foreground mt-1">
-          Manage shared links to documents and meetings. Revoke access at any time.
+    <div class="p-4 sm:p-6 max-w-screen-lg mx-auto mt-2 sm:mt-4">
+      <div class="border-b mb-4 sm:mb-6 pb-4">
+        <h1 class="text-lg sm:text-xl font-bold">Shared Links</h1>
+        <p class="text-sm text-muted-foreground mt-1">
+          Manage shared links. Revoke access at any time.
         </p>
       </div>
 
@@ -84,26 +84,27 @@ export const ShareLinksManagementPage: Component = () => {
               {link => {
                 const status = getLinkStatus(link);
                 return (
-                  <div class="px-4 py-3 flex items-center gap-3">
-                    <div class={`size-5 flex-shrink-0 ${link.resourceType === 'meeting' ? 'i-tabler-microphone' : 'i-tabler-file-text'} text-muted-foreground`} />
-
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="font-mono text-xs text-muted-foreground">{link.resourceType}:{link.resourceId}</span>
-                        <Badge variant={status.variant} class="text-xs">{status.label}</Badge>
-                        <Show when={link.hasPassword}>
-                          <div class="i-tabler-lock size-3.5 text-muted-foreground" title="Password protected" />
-                        </Show>
-                      </div>
-                      <div class="text-xs text-muted-foreground mt-1">
-                        {link.viewCount} views
-                        <Show when={link.maxViews !== null}> / {link.maxViews} max</Show>
-                        {' '}&middot; {timeUntil(link.expiresAt)}
-                        {' '}&middot; Created {formatDate(link.createdAt)}
+                  <div class="px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <div class="flex items-center gap-2 min-w-0">
+                      <div class={`size-5 flex-shrink-0 ${link.resourceType === 'meeting' ? 'i-tabler-microphone' : 'i-tabler-file-text'} text-muted-foreground`} />
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <span class="font-mono text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-none">{link.resourceId}</span>
+                          <Badge variant={status.variant} class="text-xs">{status.label}</Badge>
+                          <Show when={link.hasPassword}>
+                            <div class="i-tabler-lock size-3.5 text-muted-foreground" title="Password protected" />
+                          </Show>
+                        </div>
+                        <div class="text-xs text-muted-foreground mt-1">
+                          {link.viewCount} views
+                          <Show when={link.maxViews !== null}> / {link.maxViews} max</Show>
+                          {' '}&middot; {timeUntil(link.expiresAt)}
+                          <span class="hidden sm:inline"> &middot; Created {formatDate(link.createdAt)}</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div class="flex gap-2 flex-shrink-0">
+                    <div class="flex gap-2 flex-shrink-0 self-end sm:self-auto">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -113,7 +114,8 @@ export const ShareLinksManagementPage: Component = () => {
                           createToast({ type: 'success', message: 'Link copied' });
                         }}
                       >
-                        <div class="i-tabler-copy size-4" />
+                        <div class="i-tabler-copy size-4 mr-1" />
+                        <span class="sm:hidden">Copy</span>
                       </Button>
                       <Button
                         variant="destructive"
@@ -138,11 +140,11 @@ export const ShareLinksManagementPage: Component = () => {
               {link => {
                 const status = getLinkStatus(link);
                 return (
-                  <div class="px-4 py-3 flex items-center gap-3">
+                  <div class="px-3 sm:px-4 py-3 flex items-center gap-2 sm:gap-3">
                     <div class={`size-5 flex-shrink-0 ${link.resourceType === 'meeting' ? 'i-tabler-microphone' : 'i-tabler-file-text'} text-muted-foreground`} />
                     <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="font-mono text-xs text-muted-foreground">{link.resourceType}:{link.resourceId}</span>
+                      <div class="flex items-center gap-2 flex-wrap">
+                        <span class="font-mono text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-none">{link.resourceId}</span>
                         <Badge variant={status.variant} class="text-xs">{status.label}</Badge>
                       </div>
                       <div class="text-xs text-muted-foreground mt-1">

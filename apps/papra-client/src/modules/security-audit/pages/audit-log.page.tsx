@@ -56,15 +56,15 @@ export const AuditLogPage: Component = () => {
   }));
 
   return (
-    <div class="p-6 max-w-screen-lg mx-auto mt-4">
-      <div class="border-b mb-6 pb-4">
-        <h1 class="text-xl font-bold">Security Audit Log</h1>
-        <p class="text-muted-foreground mt-1">
-          Track who accessed what and when. All sensitive operations are logged.
+    <div class="p-4 sm:p-6 max-w-screen-lg mx-auto mt-2 sm:mt-4">
+      <div class="border-b mb-4 sm:mb-6 pb-4">
+        <h1 class="text-lg sm:text-xl font-bold">Security Audit Log</h1>
+        <p class="text-sm text-muted-foreground mt-1">
+          Track who accessed what and when.
         </p>
       </div>
 
-      <div class="flex items-center gap-3 mb-4">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4">
         <Select
           value={actionFilter()}
           onChange={v => { setActionFilter(v ?? ''); setPageIndex(0); }}
@@ -103,30 +103,28 @@ export const AuditLogPage: Component = () => {
           <div class="border rounded-lg divide-y">
             <For each={query.data?.entries ?? []}>
               {entry => (
-                <div class="px-4 py-3 flex items-center gap-3 text-sm">
-                  <div class="flex-shrink-0">
+                <div class="px-3 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-sm">
+                  <div class="flex items-center gap-2">
                     <Badge variant={actionBadgeVariant(entry.action)} class="text-xs">
                       {entry.action}
                     </Badge>
-                  </div>
-
-                  <div class="flex-1 min-w-0">
-                    <Show when={entry.resourceId}>
-                      <span class="font-mono text-xs text-muted-foreground">{entry.resourceType}:{entry.resourceId}</span>
-                    </Show>
-                    <Show when={entry.details}>
-                      <span class="text-muted-foreground ml-2">
-                        {entry.details && typeof entry.details === 'object' && 'documentName' in entry.details
-                          ? String(entry.details.documentName)
-                          : ''}
+                    <Show when={entry.details && typeof entry.details === 'object' && 'documentName' in entry.details}>
+                      <span class="text-muted-foreground text-xs truncate">
+                        {String((entry.details as Record<string, unknown>).documentName)}
                       </span>
                     </Show>
                   </div>
 
-                  <div class="flex items-center gap-3 flex-shrink-0 text-xs text-muted-foreground">
+                  <div class="flex-1 min-w-0">
+                    <Show when={entry.resourceId}>
+                      <span class="font-mono text-xs text-muted-foreground truncate block">{entry.resourceType}:{entry.resourceId}</span>
+                    </Show>
+                  </div>
+
+                  <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0 text-xs text-muted-foreground">
                     <span title={entry.ipAddress ?? ''}>{entry.ipAddress ?? '-'}</span>
-                    <span title={entry.userAgent ?? ''}>{shortenUserAgent(entry.userAgent)}</span>
-                    <span class="w-36 text-right">{formatTimestamp(entry.createdAt)}</span>
+                    <span class="hidden sm:inline" title={entry.userAgent ?? ''}>{shortenUserAgent(entry.userAgent)}</span>
+                    <span class="text-right">{formatTimestamp(entry.createdAt)}</span>
                   </div>
                 </div>
               )}

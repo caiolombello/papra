@@ -110,7 +110,7 @@ export const MeetingUploadArea: Component = () => {
     <div class="space-y-2">
       <div
         class={cn(
-          'border border-[2px] border-dashed text-muted-foreground rounded-lg p-4 flex items-center justify-center gap-4',
+          'border border-[2px] border-dashed text-muted-foreground rounded-lg p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 text-center sm:text-left',
           { 'border-primary': isDragging() },
         )}
         onDragOver={handleDragOver}
@@ -119,7 +119,7 @@ export const MeetingUploadArea: Component = () => {
       >
         <div class="i-tabler-cloud-upload size-8" />
         <p class="text-sm">
-          {isDragging() ? 'Drop audio/video files here' : 'Drag and drop audio or video files to transcribe'}
+          {isDragging() ? 'Drop audio/video files here' : 'Drop audio/video files here or'}
         </p>
         <Button variant="outline" size="sm" onClick={handleSelectFiles} disabled={isUploading()}>
           <div class="i-tabler-upload mr-2" />

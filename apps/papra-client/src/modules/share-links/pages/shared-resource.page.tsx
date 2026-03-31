@@ -101,8 +101,8 @@ export const SharedResourcePage: Component = () => {
 
   return (
     <div class="min-h-screen bg-background">
-      <div class="max-w-4xl mx-auto p-6 pt-12">
-        <div class="flex items-center gap-2 mb-8 text-muted-foreground">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 pt-6 sm:pt-12 pb-8">
+        <div class="flex items-center gap-2 mb-6 sm:mb-8 text-muted-foreground">
           <div class="i-tabler-share size-5" />
           <span class="text-sm">Shared via Papra</span>
         </div>
@@ -168,26 +168,26 @@ export const SharedResourcePage: Component = () => {
                     <>
                       <Card>
                         <CardHeader>
-                          <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                              <div class="i-tabler-file-text size-8 text-primary" />
-                              <div>
-                                <CardTitle>{doc().name}</CardTitle>
-                                <div class="text-sm text-muted-foreground mt-1">
+                          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                              <div class="i-tabler-file-text size-6 sm:size-8 text-primary flex-shrink-0" />
+                              <div class="min-w-0">
+                                <CardTitle class="text-base sm:text-lg truncate">{doc().name}</CardTitle>
+                                <div class="text-xs sm:text-sm text-muted-foreground mt-1">
                                   {formatFileSize(doc().originalSize)} &middot; {formatDate(doc().createdAt)}
                                 </div>
                               </div>
                             </div>
-                            <div class="flex gap-2">
+                            <div class="flex gap-2 self-end sm:self-auto">
                               <Show when={doc().content}>
                                 <Button variant="outline" size="sm" onClick={() => setShowText(!showText())}>
-                                  <div class={`size-4 mr-2 ${showText() ? 'i-tabler-file' : 'i-tabler-file-text'}`} />
-                                  {showText() ? 'Preview' : 'Text'}
+                                  <div class={`size-4 sm:mr-2 ${showText() ? 'i-tabler-file' : 'i-tabler-file-text'}`} />
+                                  <span class="hidden sm:inline">{showText() ? 'Preview' : 'Text'}</span>
                                 </Button>
                               </Show>
                               <Button variant="outline" size="sm" as="a" href={fileUrl()} download={doc().name}>
-                                <div class="i-tabler-download size-4 mr-2" />
-                                Download
+                                <div class="i-tabler-download size-4 sm:mr-2" />
+                                <span class="hidden sm:inline">Download</span>
                               </Button>
                             </div>
                           </div>
@@ -201,7 +201,7 @@ export const SharedResourcePage: Component = () => {
                               <iframe
                                 src={fileUrl()}
                                 class="w-full rounded border"
-                                style={{ height: '80vh' }}
+                                style={{ height: 'min(80vh, 600px)' }}
                                 title={doc().name}
                               />
                             </Show>
@@ -265,19 +265,19 @@ export const SharedResourcePage: Component = () => {
                         </Show>
                       </Card>
 
-                      <h3 class="text-lg font-semibold mt-6 mb-3">Transcript</h3>
-                      <div class="space-y-1">
+                      <h3 class="text-base sm:text-lg font-semibold mt-4 sm:mt-6 mb-3">Transcript</h3>
+                      <div class="space-y-0.5">
                         <For each={meeting().chunks}>
                           {chunk => (
-                            <div class="flex gap-3 py-2 px-3 rounded hover:bg-muted/50">
+                            <div class="flex gap-2 sm:gap-3 py-2 px-2 sm:px-3 rounded hover:bg-muted/50">
                               <Show when={chunk.startedAtMs !== null}>
-                                <span class="text-xs text-muted-foreground font-mono w-12 flex-shrink-0 pt-0.5">
+                                <span class="text-xs text-muted-foreground font-mono w-10 sm:w-12 flex-shrink-0 pt-0.5">
                                   {formatMs(chunk.startedAtMs)}
                                 </span>
                               </Show>
-                              <div class="flex-1">
+                              <div class="flex-1 min-w-0">
                                 <Show when={chunk.speaker}>
-                                  <span class="text-xs font-medium text-primary mr-2">{chunk.speaker}</span>
+                                  <span class="text-xs font-medium text-primary mr-2 block sm:inline">{chunk.speaker}</span>
                                 </Show>
                                 <span class="text-sm leading-6">{chunk.content}</span>
                               </div>
