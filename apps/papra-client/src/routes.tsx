@@ -45,6 +45,7 @@ import { TaggingRulesPage } from './modules/tagging-rules/pages/tagging-rules.pa
 import { UpdateTaggingRulePage } from './modules/tagging-rules/pages/update-tagging-rule.page';
 import { TagsPage } from './modules/tags/pages/tags.page';
 import { PdfPasswordRulesPage } from './modules/pdf-password-rules/pages/pdf-password-rules.page';
+import { AuditLogPage } from './modules/security-audit/pages/audit-log.page';
 import { OrganizationSettingsLayout } from './modules/ui/layouts/organization-settings.layout';
 import { OrganizationLayout } from './modules/ui/layouts/organization.layout';
 import { SettingsLayout } from './modules/ui/layouts/settings.layout';
@@ -233,6 +234,10 @@ export const routes: RouteDefinition[] = [
               {
                 path: '/pdf-password-rules',
                 component: PdfPasswordRulesPage,
+              },
+              {
+                path: '/audit-log',
+                component: AuditLogPage,
               },
             ],
           },

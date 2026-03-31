@@ -34,6 +34,11 @@ export const OrganizationSettingsLayout: ParentComponent = (props) => {
       href: `/organizations/${params.organizationId}/settings/pdf-password-rules`,
       icon: 'i-tabler-lock',
     },
+    {
+      label: 'Audit Log',
+      href: `/organizations/${params.organizationId}/settings/audit-log`,
+      icon: 'i-tabler-shield-check',
+    },
   ];
 
   return (
