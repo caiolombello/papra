@@ -1,11 +1,14 @@
 import type { ParentComponent } from 'solid-js';
-import { A, useParams } from '@solidjs/router';
+import { A, useLocation, useParams } from '@solidjs/router';
+import { For } from 'solid-js';
 import { useI18n } from '@/modules/i18n/i18n.provider';
+import { cn } from '@/modules/shared/style/cn';
 import { SideNav } from '@/modules/ui/components/sidenav';
 import { Button } from '../components/button';
 
 export const OrganizationSettingsLayout: ParentComponent = (props) => {
   const params = useParams();
+  const location = useLocation();
   const { t } = useI18n();
 
   const getNavigationItems = () => [
@@ -46,10 +49,46 @@ export const OrganizationSettingsLayout: ParentComponent = (props) => {
     },
   ];
 
-  return (
-    <div class="flex flex-row h-screen min-h-0">
-      <div class="w-280px border-r border-r-border  flex-shrink-0 hidden md:block bg-card">
+  const isActive = (href: string) => {
+    const basePath = `/organizations/${params.organizationId}/settings`;
+    if (href === basePath) {
+      return location.pathname === basePath;
+    }
+    return location.pathname.startsWith(href);
+  };
 
+  return (
+    <div class="flex flex-col md:flex-row h-screen min-h-0">
+      {/* Mobile: horizontal scrollable tabs */}
+      <div class="md:hidden border-b border-b-border bg-card">
+        <div class="flex items-center gap-1 px-3 py-2 border-b border-b-border">
+          <Button variant="ghost" size="icon" class="text-muted-foreground size-8" as={A} href={`/organizations/${params.organizationId}`}>
+            <div class="i-tabler-arrow-left size-4" />
+          </Button>
+          <h1 class="text-sm font-bold">{t('organization.settings.title')}</h1>
+        </div>
+        <div class="flex overflow-x-auto gap-1 px-3 py-2 scrollbar-none">
+          <For each={getNavigationItems()}>
+            {item => (
+              <A
+                href={item.href}
+                class={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors',
+                  isActive(item.href)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent',
+                )}
+              >
+                <div class={cn(item.icon, 'size-3.5')} />
+                {item.label}
+              </A>
+            )}
+          </For>
+        </div>
+      </div>
+
+      {/* Desktop: sidebar */}
+      <div class="w-280px border-r border-r-border flex-shrink-0 hidden md:block bg-card">
         <SideNav
           mainMenu={getNavigationItems()}
           header={() => (
@@ -63,9 +102,9 @@ export const OrganizationSettingsLayout: ParentComponent = (props) => {
             </div>
           )}
         />
-
       </div>
-      <div class="flex-1 min-h-0 flex flex-col">
+
+      <div class="flex-1 min-h-0 flex flex-col overflow-auto">
         {props.children}
       </div>
     </div>
