@@ -260,7 +260,7 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
       let notificationServices: ReturnType<typeof createNotificationServices> | undefined;
       try {
         const emailServices = createEmailsServices({ config });
-        const notifyEmail = (config as any).notifications?.email ?? undefined;
+        const notifyEmail = process.env.NOTIFICATIONS_EMAIL?.trim() || undefined;
         notificationServices = createNotificationServices({ emailServices, notifyEmail });
       } catch {
         // Email services not configured, skip notifications
