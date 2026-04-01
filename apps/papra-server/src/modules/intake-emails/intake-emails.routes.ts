@@ -201,21 +201,7 @@ function setupUpdateIntakeEmailRoute({ app, db }: RouteDefinitionContext) {
 function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsStorageService, eventServices }: RouteDefinitionContext) {
   app.post(
     INTAKE_EMAILS_INGEST_ROUTE,
-    validateFormData(z.object({
-      // email field is a JSON string
-      'email': z.string().transform(parseJson).pipe(intakeEmailsIngestionMetaSchema),
-      'attachments[]': z.array(z.instanceof(File)).min(1, 'At least one attachment is required').optional(),
-    }), { allowAdditionalFields: true }),
     async (context) => {
-      const { email, 'attachments[]': attachments = [] } = context.req.valid('form');
-      const fromAddress = email.from.address;
-      const recipientsAddresses = getRecipientAddresses({ email });
-      const subject = email.subject ?? '';
-
-      addLogContext({ fromAddress, recipientsAddresses });
-
-      logger.info({ attachmentsCount: attachments.length, subject }, 'Received intake email ingestion request');
-
       if (!config.intakeEmails.isEnabled) {
         throw createError({
           message: 'Intake emails are disabled',
@@ -224,6 +210,7 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         });
       }
 
+      // Read body ONCE for both signature verification and form parsing
       const bodyBuffer = await context.req.arrayBuffer();
       const signature = getHeader({ context, name: 'X-Signature' });
 
@@ -246,6 +233,58 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
 
         throw createUnauthorizedError();
       }
+
+      // Parse multipart form data from the buffered body
+      const contentType = context.req.header('content-type') ?? '';
+      const { Readable } = await import('node:stream');
+      const createBusboy = (await import('busboy')).default;
+
+      const { email, attachments } = await new Promise<{ email: any; attachments: File[] }>((resolve, reject) => {
+        let emailJson: any = null;
+        const files: File[] = [];
+
+        const bb = createBusboy({
+          headers: { 'content-type': contentType },
+          limits: { files: 20 },
+          defParamCharset: 'utf8',
+        });
+
+        bb.on('field', (name, value) => {
+          if (name === 'email') {
+            try { emailJson = JSON.parse(value); } catch { emailJson = null; }
+          }
+        });
+
+        bb.on('file', (name, stream, info) => {
+          if (!name.startsWith('attachments')) {
+            stream.resume();
+            return;
+          }
+          const chunks: Buffer[] = [];
+          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+          stream.on('end', () => {
+            const buffer = Buffer.concat(chunks);
+            files.push(new File([buffer], info.filename || 'file', { type: info.mimeType || 'application/octet-stream' }));
+          });
+        });
+
+        bb.on('close', () => resolve({ email: emailJson, attachments: files }));
+        bb.on('error', reject);
+
+        Readable.from(Buffer.from(bodyBuffer)).pipe(bb);
+      });
+
+      if (!email?.from?.address) {
+        throw createError({ message: 'Invalid email payload', code: 'intake_emails.invalid_payload', statusCode: 400 });
+      }
+
+      const fromAddress = email.from.address;
+      const recipientsAddresses = getRecipientAddresses({ email });
+      const subject = email.subject ?? '';
+
+      addLogContext({ fromAddress, recipientsAddresses });
+
+      logger.info({ attachmentsCount: attachments.length, subject }, 'Received intake email ingestion request');
 
       const intakeEmailsRepository = createIntakeEmailsRepository({ db });
 
