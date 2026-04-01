@@ -2,8 +2,10 @@ import type { Component, JSX } from 'solid-js';
 import type { TaggingRule, TaggingRuleForCreation } from '../tagging-rules.types';
 import { getValue, insert, remove, setValue } from '@modular-forms/solid';
 import { A } from '@solidjs/router';
+import { useQuery } from '@tanstack/solid-query';
 import { For, Show } from 'solid-js';
 import * as v from 'valibot';
+import { apiClient } from '@/modules/shared/http/api-client';
 import { useI18n } from '@/modules/i18n/i18n.provider';
 import { useConfirmModal } from '@/modules/shared/confirm';
 import { createForm } from '@/modules/shared/form/form';
@@ -25,8 +27,16 @@ export const TaggingRuleForm: Component<{
   const { t } = useI18n();
   const { confirm } = useConfirmModal();
 
+  const foldersQuery = useQuery(() => ({
+    queryKey: ['organizations', props.organizationId, 'folders-flat'],
+    queryFn: () => apiClient<{ folders: { id: string; name: string; parentId: string | null }[] }>({
+      method: 'GET',
+      path: `/api/organizations/${props.organizationId}/folders`,
+    }),
+  }));
+
   const { form, Form, Field, FieldArray } = createForm({
-    onSubmit: async ({ name, conditions = [], tagIds, description, conditionMatchMode }) => {
+    onSubmit: async ({ name, conditions = [], tagIds, description, conditionMatchMode, folderId }) => {
       if (conditions.length === 0) {
         const confirmed = await confirm({
           title: t('tagging-rules.form.conditions.no-conditions.title'),
@@ -45,7 +55,7 @@ export const TaggingRuleForm: Component<{
         }
       }
 
-      props.onSubmit({ taggingRule: { name, conditions, tagIds, description, conditionMatchMode } });
+      props.onSubmit({ taggingRule: { name, conditions, tagIds, description, conditionMatchMode, folderId: folderId || undefined } });
     },
     schema: v.object({
       name: v.pipe(
@@ -58,6 +68,7 @@ export const TaggingRuleForm: Component<{
         v.maxLength(256, t('tagging-rules.form.description.max-length')),
       ),
       conditionMatchMode: v.optional(v.picklist(Object.values(CONDITION_MATCH_MODES))),
+      folderId: v.optional(v.string()),
       conditions: v.optional(
         v.array(v.object({
           field: v.picklist(Object.values(TAGGING_RULE_FIELDS)),
@@ -79,6 +90,7 @@ export const TaggingRuleForm: Component<{
       name: props.taggingRule?.name,
       description: props.taggingRule?.description,
       conditionMatchMode: props.taggingRule?.conditionMatchMode ?? CONDITION_MATCH_MODES.ALL,
+      folderId: (props.taggingRule as any)?.folderId ?? '',
     },
   });
 
@@ -274,6 +286,39 @@ export const TaggingRuleForm: Component<{
             </div>
             {field.error && <div class="text-red-500 text-sm">{field.error}</div>}
           </>
+        )}
+      </Field>
+
+      <Separator class="my-6" />
+
+      <p class="mb-1 font-medium">Move to folder</p>
+      <p class="mb-2 text-sm text-muted-foreground">Optionally move matching documents to a specific folder.</p>
+
+      <Field name="folderId">
+        {field => (
+          <Select
+            value={field.value ?? ''}
+            onChange={value => setValue(form, 'folderId', value ?? '')}
+            options={['', ...(foldersQuery.data?.folders?.map(f => f.id) ?? [])]}
+            itemComponent={props => (
+              <SelectItem item={props.item}>
+                {props.item.rawValue === ''
+                  ? 'No folder (keep in current location)'
+                  : foldersQuery.data?.folders?.find(f => f.id === props.item.rawValue)?.name ?? props.item.rawValue}
+              </SelectItem>
+            )}
+          >
+            <SelectTrigger class="w-full">
+              <SelectValue<string>>
+                {state => {
+                  const selected = state.selectedOption();
+                  if (!selected) return 'No folder (keep in current location)';
+                  return foldersQuery.data?.folders?.find(f => f.id === selected)?.name ?? 'No folder (keep in current location)';
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent />
+          </Select>
         )}
       </Field>
 

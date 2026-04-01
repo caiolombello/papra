@@ -8,6 +8,7 @@ export type TaggingRuleForCreation = {
   conditionMatchMode?: ConditionMatchMode;
   conditions: TaggingRuleCondition[];
   tagIds: string[];
+  folderId?: string;
 };
 
 export type TaggingRuleCondition = {
@@ -21,6 +22,7 @@ export type TaggingRule = {
   name: string;
   description: string;
   conditionMatchMode?: ConditionMatchMode;
+  folderId?: string | null;
   conditions: TaggingRuleCondition[];
   actions: { tagId: string }[];
   organizationId: string;
