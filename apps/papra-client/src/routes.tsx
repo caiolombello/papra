@@ -45,6 +45,7 @@ import { TaggingRulesPage } from './modules/tagging-rules/pages/tagging-rules.pa
 import { UpdateTaggingRulePage } from './modules/tagging-rules/pages/update-tagging-rule.page';
 import { TagsPage } from './modules/tags/pages/tags.page';
 import { PdfPasswordRulesPage } from './modules/pdf-password-rules/pages/pdf-password-rules.page';
+import { IntakeEmailLogPage } from './modules/intake-emails/pages/intake-email-log.page';
 import { AuditLogPage } from './modules/security-audit/pages/audit-log.page';
 import { ShareLinksManagementPage } from './modules/share-links/pages/share-links-management.page';
 import { SharedResourcePage } from './modules/share-links/pages/shared-resource.page';
@@ -236,6 +237,10 @@ export const routes: RouteDefinition[] = [
               {
                 path: '/pdf-password-rules',
                 component: PdfPasswordRulesPage,
+              },
+              {
+                path: '/intake-log',
+                component: IntakeEmailLogPage,
               },
               {
                 path: '/audit-log',

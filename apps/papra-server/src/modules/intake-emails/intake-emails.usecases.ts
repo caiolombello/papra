@@ -1,3 +1,4 @@
+import type { Database } from '../app/database/database.types';
 import type { CreateDocumentUsecase } from '../documents/documents.usecases';
 import type { PlansRepository } from '../plans/plans.repository';
 import type { Logger } from '../shared/logger/logger';
@@ -53,6 +54,7 @@ export async function processIntakeEmailIngestion({
   subject = '',
   intakeEmailsRepository,
   createDocument,
+  db,
 }: {
   fromAddress: string;
   recipientsAddresses: string[];
@@ -60,6 +62,7 @@ export async function processIntakeEmailIngestion({
   subject?: string;
   intakeEmailsRepository: IntakeEmailsRepository;
   createDocument: CreateDocumentUsecase;
+  db?: Database;
 }) {
   return Promise.all(
     recipientsAddresses.map(async recipientAddress => safely(
@@ -70,6 +73,7 @@ export async function processIntakeEmailIngestion({
         subject,
         intakeEmailsRepository,
         createDocument,
+        db,
       }),
     )),
   );
@@ -81,6 +85,7 @@ export async function ingestEmailForRecipient({
   attachments,
   subject = '',
   intakeEmailsRepository,
+  db,
   logger = createLogger({ namespace: 'intake-emails.ingest' }),
   createDocument,
 }: {
@@ -89,6 +94,7 @@ export async function ingestEmailForRecipient({
   attachments: File[];
   subject?: string;
   intakeEmailsRepository: IntakeEmailsRepository;
+  db?: Database;
   logger?: Logger;
   createDocument: CreateDocumentUsecase;
 }) {
@@ -119,6 +125,9 @@ export async function ingestEmailForRecipient({
     return;
   }
 
+  const documentIds: string[] = [];
+  const errors: string[] = [];
+
   await Promise.all(attachments.map(async (file) => {
     const { mimeType } = await coerceFileMimeType({ file });
 
@@ -132,10 +141,31 @@ export async function ingestEmailForRecipient({
 
     if (error) {
       logger.error({ error }, 'Failed to create document for intake email ingestion');
+      errors.push(error.message);
     } else {
       logger.info({ documentId: result.document.id }, 'Document created for intake email ingestion');
+      documentIds.push(result.document.id);
     }
   }));
+
+  // Log the intake email
+  if (db) {
+    try {
+      const { intakeEmailLogTable } = await import('./intake-email-log.table');
+      await db.insert(intakeEmailLogTable).values({
+        organizationId: intakeEmail.organizationId,
+        intakeEmailId: intakeEmail.id,
+        fromAddress,
+        subject,
+        attachmentsCount: attachments.length,
+        status: errors.length > 0 ? (documentIds.length > 0 ? 'partial' : 'failed') : 'success',
+        errorMessage: errors.length > 0 ? errors.join('; ') : null,
+        documentIds: documentIds.length > 0 ? JSON.stringify(documentIds) : null,
+      });
+    } catch (logError) {
+      logger.error({ error: logError }, 'Failed to log intake email');
+    }
+  }
 }
 
 export async function checkIfOrganizationCanCreateNewIntakeEmail({

@@ -13,7 +13,7 @@ import { createError } from '../shared/errors/errors';
 import { getHeader } from '../shared/headers/headers.models';
 import { addLogContext, createLogger } from '../shared/logger/logger';
 import { isNil } from '../shared/utils';
-import { validateFormData, validateJsonBody, validateParams } from '../shared/validation/validation';
+import { validateFormData, validateJsonBody, validateParams, validateQuery } from '../shared/validation/validation';
 import { createSubscriptionsRepository } from '../subscriptions/subscriptions.repository';
 import { createUsersRepository } from '../users/users.repository';
 import { INTAKE_EMAILS_INGEST_ROUTE } from './intake-emails.constants';
@@ -29,9 +29,53 @@ const logger = createLogger({ namespace: 'intake-emails.routes' });
 export function registerIntakeEmailsRoutes(context: RouteDefinitionContext) {
   setupIngestIntakeEmailRoute(context);
   setupGetOrganizationIntakeEmailsRoute(context);
+  setupGetIntakeEmailLogRoute(context);
   setupCreateIntakeEmailRoute(context);
   setupDeleteIntakeEmailRoute(context);
   setupUpdateIntakeEmailRoute(context);
+}
+
+function setupGetIntakeEmailLogRoute({ app, db }: RouteDefinitionContext) {
+  app.get(
+    '/api/organizations/:organizationId/intake-emails/log',
+    requireAuthentication(),
+    validateParams(z.object({ organizationId: organizationIdSchema })),
+    validateQuery(z.object({
+      pageIndex: z.coerce.number().int().min(0).default(0),
+      pageSize: z.coerce.number().int().min(1).max(100).default(50),
+    })),
+    async (context) => {
+      const { userId } = getUser({ context });
+      const { organizationId } = context.req.valid('param');
+      const { pageIndex, pageSize } = context.req.valid('query');
+
+      const organizationsRepository = createOrganizationsRepository({ db });
+      await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
+
+      const { intakeEmailLogTable } = await import('./intake-email-log.table');
+      const { desc, eq, sql } = await import('drizzle-orm');
+
+      const [entries, countResult] = await Promise.all([
+        db.select()
+          .from(intakeEmailLogTable)
+          .where(eq(intakeEmailLogTable.organizationId, organizationId))
+          .orderBy(desc(intakeEmailLogTable.createdAt))
+          .limit(pageSize)
+          .offset(pageIndex * pageSize),
+        db.select({ count: sql<number>`COUNT(*)` })
+          .from(intakeEmailLogTable)
+          .where(eq(intakeEmailLogTable.organizationId, organizationId)),
+      ]);
+
+      return context.json({
+        entries: entries.map(e => ({
+          ...e,
+          documentIds: e.documentIds ? JSON.parse(e.documentIds) : [],
+        })),
+        totalCount: countResult[0]?.count ?? 0,
+      });
+    },
+  );
 }
 
 function setupGetOrganizationIntakeEmailsRoute({ app, db }: RouteDefinitionContext) {
@@ -218,6 +262,7 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         subject,
         intakeEmailsRepository,
         createDocument,
+        db,
       });
 
       return context.body(null, 202);
