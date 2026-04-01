@@ -28,6 +28,7 @@ import { meetingsAudioDurationMigration } from './list/0025-meetings-audio-durat
 import { meetingsStatusDetailMigration } from './list/0026-meetings-status-detail.migration';
 import { securityAuditLogMigration } from './list/0027-security-audit-log.migration';
 import { shareLinksMigration } from './list/0028-share-links.migration';
+import { taggingRulesFolderActionMigration } from './list/0029-tagging-rules-folder-action.migration';
 
 export const migrations: Migration[] = [
   initialSchemaSetupMigration,
@@ -58,4 +59,5 @@ export const migrations: Migration[] = [
   meetingsStatusDetailMigration,
   securityAuditLogMigration,
   shareLinksMigration,
+  taggingRulesFolderActionMigration,
 ];

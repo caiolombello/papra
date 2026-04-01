@@ -309,7 +309,7 @@ async function handleExistingDocument({
     documentsRepository.restoreDocument({ documentId: existingDocument.id, organizationId, name: fileName, userId }),
   ]);
 
-  await applyTaggingRules({ document: restoredDocument, taggingRulesRepository, tagsRepository, webhookRepository, documentActivityRepository });
+  await applyTaggingRules({ document: restoredDocument, taggingRulesRepository, tagsRepository, webhookRepository, documentActivityRepository, documentsRepository });
 
   return { document: restoredDocument };
 }
@@ -587,7 +587,7 @@ export async function extractAndSaveDocumentFileContent({
     throw createDocumentNotFoundError();
   }
 
-  await applyTaggingRules({ document: updatedDocument, taggingRulesRepository, tagsRepository, webhookRepository, documentActivityRepository });
+  await applyTaggingRules({ document: updatedDocument, taggingRulesRepository, tagsRepository, webhookRepository, documentActivityRepository, documentsRepository });
 
   return { document: updatedDocument };
 }

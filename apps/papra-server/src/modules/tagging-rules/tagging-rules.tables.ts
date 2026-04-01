@@ -1,6 +1,7 @@
 import type { ConditionMatchMode } from './tagging-rules.types';
 
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { documentFoldersTable } from '../document-folders/document-folders.table';
 import { organizationsTable } from '../organizations/organizations.table';
 import { createPrimaryKeyField, createTimestampColumns } from '../shared/db/columns.helpers';
 import { tagsTable } from '../tags/tags.table';
@@ -17,6 +18,7 @@ export const taggingRulesTable = sqliteTable(
     description: text('description'),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
     conditionMatchMode: text('condition_match_mode').notNull().default('all').$type<ConditionMatchMode>(),
+    folderId: text('folder_id').references(() => documentFoldersTable.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   },
 );
 

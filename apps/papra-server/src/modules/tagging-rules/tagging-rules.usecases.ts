@@ -24,6 +24,7 @@ export async function createTaggingRule({
   conditionMatchMode,
   conditions,
   tagIds,
+  folderId,
   organizationId,
 
   taggingRulesRepository,
@@ -38,6 +39,7 @@ export async function createTaggingRule({
     value: string;
   }[];
   tagIds: string[];
+  folderId?: string | null;
   organizationId: string;
 
   taggingRulesRepository: TaggingRulesRepository;
@@ -48,6 +50,7 @@ export async function createTaggingRule({
       description,
       enabled,
       conditionMatchMode,
+      folderId: folderId ?? null,
       organizationId,
     },
   });
@@ -71,6 +74,7 @@ export async function applyTaggingRule({
   tagsRepository,
   webhookRepository,
   documentActivityRepository,
+  documentsRepository,
   taggingRuleOperatorValidatorRegistry = createTaggingRuleOperatorValidatorRegistry(),
   logger = createLogger({ namespace: 'tagging-rules' }),
 }: {
@@ -78,6 +82,7 @@ export async function applyTaggingRule({
   taggingRule: {
     id: string;
     conditionMatchMode?: ConditionMatchMode;
+    folderId?: string | null;
     conditions: Array<{
       operator: string;
       field: string;
@@ -91,6 +96,7 @@ export async function applyTaggingRule({
   tagsRepository: TagsRepository;
   webhookRepository: WebhookRepository;
   documentActivityRepository: DocumentActivityRepository;
+  documentsRepository?: DocumentsRepository;
   taggingRuleOperatorValidatorRegistry?: TaggingRuleOperatorValidatorRegistry;
   logger?: Logger;
 }): Promise<{ appliedTagIds: string[] }> {
@@ -151,9 +157,27 @@ export async function applyTaggingRule({
 
   const appliedTagIds = appliedTagIdsResults.filter((id): id is string => id !== undefined);
 
+  // Move document to folder if rule specifies one
+  if (taggingRule.folderId && documentsRepository) {
+    const [, moveError] = await safely(async () =>
+      documentsRepository.updateDocument({
+        documentId: document.id,
+        organizationId: document.organizationId,
+        folderId: taggingRule.folderId!,
+      }),
+    );
+
+    if (moveError) {
+      logger.error({ error: moveError, folderId: taggingRule.folderId, documentId: document.id }, 'Failed to move document to folder');
+    } else {
+      logger.info({ folderId: taggingRule.folderId, documentId: document.id }, 'Document moved to folder by tagging rule');
+    }
+  }
+
   logger.info({
     taggingRuleId: taggingRule.id,
     appliedTagIds,
+    folderId: taggingRule.folderId,
     expectedTagCount: tagsToApply.length,
     hasAllTagBeenApplied: appliedTagIds.length === tagsToApply.length,
   }, 'Tagging rule applied to document');
@@ -169,6 +193,7 @@ export async function applyTaggingRules({
   document,
 
   taggingRulesRepository,
+  documentsRepository,
   tagsRepository,
   webhookRepository,
   documentActivityRepository,
@@ -178,6 +203,7 @@ export async function applyTaggingRules({
   document: Document;
 
   taggingRulesRepository: TaggingRulesRepository;
+  documentsRepository?: DocumentsRepository;
   taggingRuleOperatorValidatorRegistry?: TaggingRuleOperatorValidatorRegistry;
   tagsRepository: TagsRepository;
   webhookRepository: WebhookRepository;
@@ -194,6 +220,7 @@ export async function applyTaggingRules({
       tagsRepository,
       webhookRepository,
       documentActivityRepository,
+      documentsRepository,
       taggingRuleOperatorValidatorRegistry,
       logger,
     });
