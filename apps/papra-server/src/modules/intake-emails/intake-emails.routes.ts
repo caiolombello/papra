@@ -238,6 +238,10 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
       const contentType = context.req.header('content-type') ?? '';
       const { Readable } = await import('node:stream');
       const createBusboy = (await import('busboy')).default;
+      const { Buffer } = await import('node:buffer');
+
+      const bodyBytes = Buffer.from(bodyBuffer);
+      logger.info({ bodySize: bodyBytes.length, contentType }, 'Parsing intake email multipart body');
 
       const { email, attachments } = await new Promise<{ email: any; attachments: File[] }>((resolve, reject) => {
         let emailJson: any = null;
@@ -249,13 +253,13 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
           defParamCharset: 'utf8',
         });
 
-        bb.on('field', (name, value) => {
+        bb.on('field', (name: string, value: string) => {
           if (name === 'email') {
             try { emailJson = JSON.parse(value); } catch { emailJson = null; }
           }
         });
 
-        bb.on('file', (name, stream, info) => {
+        bb.on('file', (name: string, stream: any, info: any) => {
           if (!name.startsWith('attachments')) {
             stream.resume();
             return;
@@ -264,14 +268,24 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
           stream.on('data', (chunk: Buffer) => chunks.push(chunk));
           stream.on('end', () => {
             const buffer = Buffer.concat(chunks);
+            logger.info({ filename: info.filename, fileSize: buffer.length, mime: info.mimeType }, 'Parsed attachment from multipart');
             files.push(new File([buffer], info.filename || 'file', { type: info.mimeType || 'application/octet-stream' }));
           });
         });
 
-        bb.on('close', () => resolve({ email: emailJson, attachments: files }));
-        bb.on('error', reject);
+        bb.on('close', () => {
+          logger.info({ emailParsed: !!emailJson, fileCount: files.length }, 'Multipart parsing complete');
+          resolve({ email: emailJson, attachments: files });
+        });
+        bb.on('error', (err: Error) => {
+          logger.error({ error: err }, 'Busboy parsing error');
+          reject(err);
+        });
 
-        Readable.from(Buffer.from(bodyBuffer)).pipe(bb);
+        const readable = new Readable();
+        readable.push(bodyBytes);
+        readable.push(null);
+        readable.pipe(bb);
       });
 
       if (!email?.from?.address) {
