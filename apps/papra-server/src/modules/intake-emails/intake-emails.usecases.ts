@@ -55,6 +55,7 @@ export async function processIntakeEmailIngestion({
   intakeEmailsRepository,
   createDocument,
   db,
+  notificationServices,
 }: {
   fromAddress: string;
   recipientsAddresses: string[];
@@ -63,6 +64,7 @@ export async function processIntakeEmailIngestion({
   intakeEmailsRepository: IntakeEmailsRepository;
   createDocument: CreateDocumentUsecase;
   db?: Database;
+  notificationServices?: { notifyDocumentReceived: (args: { documentName: string; fromAddress?: string; subject?: string }) => Promise<void> };
 }) {
   return Promise.all(
     recipientsAddresses.map(async recipientAddress => safely(
@@ -74,6 +76,7 @@ export async function processIntakeEmailIngestion({
         intakeEmailsRepository,
         createDocument,
         db,
+        notificationServices,
       }),
     )),
   );
@@ -86,6 +89,7 @@ export async function ingestEmailForRecipient({
   subject = '',
   intakeEmailsRepository,
   db,
+  notificationServices,
   logger = createLogger({ namespace: 'intake-emails.ingest' }),
   createDocument,
 }: {
@@ -95,6 +99,7 @@ export async function ingestEmailForRecipient({
   subject?: string;
   intakeEmailsRepository: IntakeEmailsRepository;
   db?: Database;
+  notificationServices?: { notifyDocumentReceived: (args: { documentName: string; fromAddress?: string; subject?: string }) => Promise<void> };
   logger?: Logger;
   createDocument: CreateDocumentUsecase;
 }) {
@@ -164,6 +169,17 @@ export async function ingestEmailForRecipient({
       });
     } catch (logError) {
       logger.error({ error: logError }, 'Failed to log intake email');
+    }
+  }
+
+  // Send notification for each created document
+  if (notificationServices && documentIds.length > 0) {
+    for (const file of attachments) {
+      notificationServices.notifyDocumentReceived({
+        documentName: file.name,
+        fromAddress,
+        subject,
+      }).catch(() => {}); // Fire and forget
     }
   }
 }

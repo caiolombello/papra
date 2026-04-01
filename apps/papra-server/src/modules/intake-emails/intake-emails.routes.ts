@@ -21,6 +21,8 @@ import { getRecipientAddresses } from './intake-emails.models';
 import { createIntakeEmailsRepository } from './intake-emails.repository';
 import { allowedOriginsSchema, intakeEmailIdSchema, intakeEmailsIngestionMetaSchema, parseJson } from './intake-emails.schemas';
 import { createIntakeEmailsServices } from './intake-emails.services';
+import { createEmailsServices } from '../emails/emails.services';
+import { createNotificationServices } from '../notifications/notifications.service';
 import { createIntakeEmail, deleteIntakeEmail, processIntakeEmailIngestion } from './intake-emails.usecases';
 import { createIntakeEmailUsernameServices } from './username-drivers/intake-email-username.services';
 
@@ -255,6 +257,15 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         eventServices,
       });
 
+      let notificationServices: ReturnType<typeof createNotificationServices> | undefined;
+      try {
+        const emailServices = createEmailsServices({ config });
+        const notifyEmail = (config as any).notifications?.email ?? undefined;
+        notificationServices = createNotificationServices({ emailServices, notifyEmail });
+      } catch {
+        // Email services not configured, skip notifications
+      }
+
       await processIntakeEmailIngestion({
         fromAddress,
         recipientsAddresses,
@@ -263,6 +274,7 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         intakeEmailsRepository,
         createDocument,
         db,
+        notificationServices,
       });
 
       return context.body(null, 202);
