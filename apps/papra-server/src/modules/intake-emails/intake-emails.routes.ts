@@ -243,9 +243,10 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
       const bodyBytes = Buffer.from(bodyBuffer);
       logger.info({ bodySize: bodyBytes.length, contentType }, 'Parsing intake email multipart body');
 
-      const { email, attachments } = await new Promise<{ email: any; attachments: File[] }>((resolve, reject) => {
+      type ParsedAttachment = { filename: string; mimeType: string; buffer: Buffer };
+      const { email, attachments } = await new Promise<{ email: any; attachments: ParsedAttachment[] }>((resolve, reject) => {
         let emailJson: any = null;
-        const files: File[] = [];
+        const files: ParsedAttachment[] = [];
 
         const bb = createBusboy({
           headers: { 'content-type': contentType },
@@ -269,7 +270,7 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
           stream.on('end', () => {
             const buffer = Buffer.concat(chunks);
             logger.info({ filename: info.filename, fileSize: buffer.length, mime: info.mimeType }, 'Parsed attachment from multipart');
-            files.push(new File([buffer], info.filename || 'file', { type: info.mimeType || 'application/octet-stream' }));
+            files.push({ filename: info.filename || 'file', mimeType: info.mimeType || 'application/octet-stream', buffer });
           });
         });
 
@@ -323,10 +324,16 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         // Email services not configured, skip notifications
       }
 
+      // Convert parsed buffers to Blob-backed File objects
+      const fileAttachments = attachments.map((a) => {
+        const blob = new Blob([a.buffer], { type: a.mimeType });
+        return new File([blob], a.filename, { type: a.mimeType });
+      });
+
       await processIntakeEmailIngestion({
         fromAddress,
         recipientsAddresses,
-        attachments,
+        attachments: fileAttachments,
         subject,
         intakeEmailsRepository,
         createDocument,
