@@ -279,7 +279,11 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
       }
 
       const fromAddress = email.from.address;
-      const recipientsAddresses = getRecipientAddresses({ email });
+      const safeEmail = {
+        to: Array.isArray(email.to) ? email.to : [],
+        originalTo: Array.isArray(email.originalTo) ? email.originalTo : [],
+      };
+      const recipientsAddresses = getRecipientAddresses({ email: safeEmail });
       const subject = email.subject ?? '';
 
       addLogContext({ fromAddress, recipientsAddresses });
