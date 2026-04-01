@@ -11,16 +11,15 @@ export async function collectReadableStreamToString({ stream }: { stream: Readab
   return buffer.toString('utf-8');
 }
 
-export function fileToReadableStream(file: File) {
-  // file.arrayBuffer() is more reliable than file.stream() for Node.js File objects
-  // created from Buffers, which can return empty ReadableStreams in some cases
-  const readable = new Readable({ read() {} });
-  file.arrayBuffer().then((ab) => {
-    readable.push(Buffer.from(ab));
-    readable.push(null);
-  }).catch((err) => {
-    readable.destroy(err instanceof Error ? err : new Error(String(err)));
-  });
+export async function fileToReadableStream(file: File) {
+  // Read the entire file into memory first, then create a Readable from it.
+  // This avoids issues with File.stream() returning empty ReadableStreams
+  // when File objects are created from Node.js Buffers.
+  const ab = await file.arrayBuffer();
+  const buf = Buffer.from(ab);
+  const readable = new Readable();
+  readable.push(buf);
+  readable.push(null);
   return readable;
 }
 

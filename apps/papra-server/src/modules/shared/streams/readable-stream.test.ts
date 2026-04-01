@@ -52,7 +52,7 @@ describe('readable-stream', () => {
   describe('fileToReadableStream', () => {
     test('converts a File object to a native Readable stream', async () => {
       const file = new File(['Hello, world!'], 'hello.txt', { type: 'text/plain' });
-      const stream = fileToReadableStream(file);
+      const stream = await fileToReadableStream(file);
 
       expect(stream).toBeInstanceOf(Readable);
 

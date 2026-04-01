@@ -136,8 +136,8 @@ export async function ingestEmailForRecipient({
   await Promise.all(attachments.map(async (file) => {
     const { mimeType } = await coerceFileMimeType({ file });
 
-    const [result, error] = await safely(createDocument({
-      fileStream: fileToReadableStream(file),
+    const [result, error] = await safely(async () => createDocument({
+      fileStream: await fileToReadableStream(file),
       fileName: file.name,
       mimeType,
       organizationId: intakeEmail.organizationId,
