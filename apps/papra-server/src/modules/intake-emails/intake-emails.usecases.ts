@@ -136,8 +136,21 @@ export async function ingestEmailForRecipient({
   await Promise.all(attachments.map(async (file) => {
     const { mimeType } = await coerceFileMimeType({ file });
 
+    // Use createReadableStream from buffer if file has _buffer (set by intake route)
+    const { Readable } = await import('node:stream');
+    const { Buffer } = await import('node:buffer');
+    const rawBuffer = (file as any)._buffer as Buffer | undefined;
+    let fileStream: import('node:stream').Readable;
+    if (rawBuffer && rawBuffer.length > 0) {
+      fileStream = new Readable();
+      fileStream.push(rawBuffer);
+      fileStream.push(null);
+    } else {
+      fileStream = await fileToReadableStream(file);
+    }
+
     const [result, error] = await safely(async () => createDocument({
-      fileStream: await fileToReadableStream(file),
+      fileStream,
       fileName: file.name,
       mimeType,
       organizationId: intakeEmail.organizationId,

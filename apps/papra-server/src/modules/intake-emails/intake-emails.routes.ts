@@ -324,10 +324,11 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         // Email services not configured, skip notifications
       }
 
-      // Convert buffers to File objects using Uint8Array (avoids File.stream()/arrayBuffer() issues)
+      // Create File objects with _buffer for direct stream access (bypasses broken File.stream()/arrayBuffer())
       const fileAttachments = attachments.map((a) => {
-        const uint8 = new Uint8Array(a.buffer);
-        return new File([uint8], a.filename, { type: a.mimeType });
+        const file = new File([a.buffer], a.filename, { type: a.mimeType });
+        (file as any)._buffer = a.buffer;
+        return file;
       });
 
       await processIntakeEmailIngestion({
