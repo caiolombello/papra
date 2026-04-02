@@ -337,9 +337,7 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         for (const attachment of attachments) {
           try {
             // Create Readable directly from Buffer — no File objects involved
-            const fileStream = new ReadableStream();
-            fileStream.push(attachment.buffer);
-            fileStream.push(null);
+            const fileStream = ReadableStream.from([attachment.buffer]);
 
             logger.info({ filename: attachment.filename, bufferSize: attachment.buffer.length }, 'Creating document from buffer');
 
