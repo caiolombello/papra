@@ -1,5 +1,6 @@
 import type { RouteDefinitionContext } from '../app/server.types';
 import { z } from 'zod';
+import { API_KEY_PERMISSIONS } from '../api-keys/api-keys.constants';
 import { requireAuthentication } from '../app/auth/auth.middleware';
 import { getUser } from '../app/auth/auth.models';
 import { createOrganizationsRepository } from '../organizations/organizations.repository';
@@ -38,7 +39,7 @@ export function registerPdfPasswordRulesRoutes(context: RouteDefinitionContext) 
 function setupListPdfPasswordRulesRoute({ app, db }: RouteDefinitionContext) {
   app.get(
     '/api/organizations/:organizationId/pdf-password-rules',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.READ] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
     })),
@@ -61,7 +62,7 @@ function setupListPdfPasswordRulesRoute({ app, db }: RouteDefinitionContext) {
 function setupCreatePdfPasswordRuleRoute({ app, db }: RouteDefinitionContext) {
   app.post(
     '/api/organizations/:organizationId/pdf-password-rules',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.UPDATE] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
     })),
@@ -93,7 +94,7 @@ function setupCreatePdfPasswordRuleRoute({ app, db }: RouteDefinitionContext) {
 function setupUpdatePdfPasswordRuleRoute({ app, db }: RouteDefinitionContext) {
   app.put(
     '/api/organizations/:organizationId/pdf-password-rules/:ruleId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.UPDATE] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       ruleId: pdfPasswordRuleIdSchema,
@@ -135,7 +136,7 @@ function setupUpdatePdfPasswordRuleRoute({ app, db }: RouteDefinitionContext) {
 function setupDeletePdfPasswordRuleRoute({ app, db }: RouteDefinitionContext) {
   app.delete(
     '/api/organizations/:organizationId/pdf-password-rules/:ruleId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.UPDATE] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       ruleId: pdfPasswordRuleIdSchema,

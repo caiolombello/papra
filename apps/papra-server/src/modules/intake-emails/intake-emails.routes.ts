@@ -1,6 +1,7 @@
 import type { RouteDefinitionContext } from '../app/server.types';
 import { verifySignature } from '@owlrelay/webhook';
 import { z } from 'zod';
+import { API_KEY_PERMISSIONS } from '../api-keys/api-keys.constants';
 import { createUnauthorizedError } from '../app/auth/auth.errors';
 import { requireAuthentication } from '../app/auth/auth.middleware';
 import { getUser } from '../app/auth/auth.models';
@@ -40,7 +41,7 @@ export function registerIntakeEmailsRoutes(context: RouteDefinitionContext) {
 function setupGetIntakeEmailLogRoute({ app, db }: RouteDefinitionContext) {
   app.get(
     '/api/organizations/:organizationId/intake-emails/log',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.READ] }),
     validateParams(z.object({ organizationId: organizationIdSchema })),
     validateQuery(z.object({
       pageIndex: z.coerce.number().int().min(0).default(0),
@@ -83,7 +84,7 @@ function setupGetIntakeEmailLogRoute({ app, db }: RouteDefinitionContext) {
 function setupGetOrganizationIntakeEmailsRoute({ app, db }: RouteDefinitionContext) {
   app.get(
     '/api/organizations/:organizationId/intake-emails',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.READ] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
     })),
@@ -106,7 +107,7 @@ function setupGetOrganizationIntakeEmailsRoute({ app, db }: RouteDefinitionConte
 function setupCreateIntakeEmailRoute({ app, db, config }: RouteDefinitionContext) {
   app.post(
     '/api/organizations/:organizationId/intake-emails',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.UPDATE] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
     })),
@@ -142,7 +143,7 @@ function setupCreateIntakeEmailRoute({ app, db, config }: RouteDefinitionContext
 function setupDeleteIntakeEmailRoute({ app, db, config }: RouteDefinitionContext) {
   app.delete(
     '/api/organizations/:organizationId/intake-emails/:intakeEmailId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.UPDATE] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       intakeEmailId: intakeEmailIdSchema,
@@ -167,7 +168,7 @@ function setupDeleteIntakeEmailRoute({ app, db, config }: RouteDefinitionContext
 function setupUpdateIntakeEmailRoute({ app, db }: RouteDefinitionContext) {
   app.put(
     '/api/organizations/:organizationId/intake-emails/:intakeEmailId',
-    requireAuthentication(),
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.ORGANIZATIONS.UPDATE] }),
     validateParams(z.object({
       organizationId: organizationIdSchema,
       intakeEmailId: intakeEmailIdSchema,
