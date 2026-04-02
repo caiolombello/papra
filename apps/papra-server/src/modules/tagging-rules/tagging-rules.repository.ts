@@ -106,15 +106,16 @@ async function updateOrganizationTaggingRule({
     conditionMatchMode: ConditionMatchMode | undefined;
     conditions: { field: TaggingRuleField; operator: TaggingRuleOperator; value: string }[];
     tagIds: string[];
+    folderId?: string | null;
   };
   db: Database;
 }) {
-  const { name, description, enabled, conditionMatchMode, conditions, tagIds } = taggingRule;
+  const { name, description, enabled, conditionMatchMode, conditions, tagIds, folderId } = taggingRule;
 
   await db.transaction(async (tx) => {
     const [updatedTaggingRule] = await tx
       .update(taggingRulesTable)
-      .set(omitUndefined({ name, description, enabled, conditionMatchMode }))
+      .set(omitUndefined({ name, description, enabled, conditionMatchMode, folderId }))
       .where(and(
         eq(taggingRulesTable.id, taggingRuleId),
         eq(taggingRulesTable.organizationId, organizationId),

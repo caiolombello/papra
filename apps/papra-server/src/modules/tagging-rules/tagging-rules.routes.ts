@@ -160,12 +160,13 @@ function setupUpdateTaggingRuleRoute({ app, db }: RouteDefinitionContext) {
         value: z.string().min(1).max(256),
       })).max(10),
       tagIds: z.array(z.string().regex(tagIdRegex)).min(1),
+      folderId: z.string().nullable().optional().describe('Move matching documents to this folder.'),
     })),
     async (context) => {
       const { userId } = getUser({ context });
 
       const { organizationId, taggingRuleId } = context.req.valid('param');
-      const { name, description, enabled, conditionMatchMode, conditions, tagIds } = context.req.valid('json');
+      const { name, description, enabled, conditionMatchMode, conditions, tagIds, folderId } = context.req.valid('json');
 
       const taggingRulesRepository = createTaggingRulesRepository({ db });
       const organizationsRepository = createOrganizationsRepository({ db });
@@ -175,7 +176,7 @@ function setupUpdateTaggingRuleRoute({ app, db }: RouteDefinitionContext) {
       await taggingRulesRepository.updateOrganizationTaggingRule({
         organizationId,
         taggingRuleId,
-        taggingRule: { name, description, enabled, conditionMatchMode, conditions, tagIds },
+        taggingRule: { name, description, enabled, conditionMatchMode, conditions, tagIds, folderId: folderId ?? null },
       });
 
       return context.body(null, 204);
