@@ -324,23 +324,64 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         // Email services not configured, skip notifications
       }
 
-      // Create File objects with _buffer for direct stream access (bypasses broken File.stream()/arrayBuffer())
-      const fileAttachments = attachments.map((a) => {
-        const file = new File([a.buffer], a.filename, { type: a.mimeType });
-        (file as any)._buffer = a.buffer;
-        return file;
-      });
+      // Resolve intake email to get organizationId
+      const { Readable: ReadableStream } = await import('node:stream');
 
-      await processIntakeEmailIngestion({
-        fromAddress,
-        recipientsAddresses,
-        attachments: fileAttachments,
-        subject,
-        intakeEmailsRepository,
-        createDocument,
-        db,
-        notificationServices,
-      });
+      for (const recipientAddress of recipientsAddresses) {
+        const { intakeEmail } = await intakeEmailsRepository.getIntakeEmailByEmailAddress({ emailAddress: recipientAddress });
+        if (!intakeEmail || !intakeEmail.isEnabled) continue;
+
+        const docIds: string[] = [];
+        const docErrors: string[] = [];
+
+        for (const attachment of attachments) {
+          try {
+            // Create Readable directly from Buffer — no File objects involved
+            const fileStream = new ReadableStream();
+            fileStream.push(attachment.buffer);
+            fileStream.push(null);
+
+            logger.info({ filename: attachment.filename, bufferSize: attachment.buffer.length }, 'Creating document from buffer');
+
+            const { document } = await createDocument({
+              fileStream,
+              fileName: attachment.filename,
+              mimeType: attachment.mimeType,
+              organizationId: intakeEmail.organizationId,
+              emailSubject: subject,
+            });
+            docIds.push(document.id);
+            logger.info({ documentId: document.id, size: document.originalSize }, 'Document created from intake buffer');
+          } catch (err: any) {
+            logger.error({ error: err, filename: attachment.filename }, 'Failed to create document from intake buffer');
+            docErrors.push(err?.message ?? 'unknown');
+          }
+        }
+
+        // Log intake email
+        if (db) {
+          try {
+            const { intakeEmailLogTable } = await import('./intake-email-log.table');
+            await db.insert(intakeEmailLogTable).values({
+              organizationId: intakeEmail.organizationId,
+              intakeEmailId: intakeEmail.id,
+              fromAddress,
+              subject,
+              attachmentsCount: attachments.length,
+              status: docErrors.length > 0 ? (docIds.length > 0 ? 'partial' : 'failed') : 'success',
+              errorMessage: docErrors.length > 0 ? docErrors.join('; ') : null,
+              documentIds: docIds.length > 0 ? JSON.stringify(docIds) : null,
+            });
+          } catch { /* logging should not break */ }
+        }
+
+        // Send notifications
+        if (notificationServices && docIds.length > 0) {
+          for (const attachment of attachments) {
+            notificationServices.notifyDocumentReceived({ documentName: attachment.filename, fromAddress, subject }).catch(() => {});
+          }
+        }
+      }
 
       return context.body(null, 202);
     },
