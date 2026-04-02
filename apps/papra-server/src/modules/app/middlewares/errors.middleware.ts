@@ -16,12 +16,9 @@ export function registerErrorMiddleware({ app }: { app: ServerInstance }) {
     }
 
     if (error.message === 'Malformed JSON in request body') {
-      // Log raw body for debugging malformed JSON issues
-      try {
-        const rawBody = await context.req.text().catch(() => '<unable to read>');
-        const contentType = context.req.header('content-type') ?? '<none>';
-        logger.error({ rawBody: rawBody.slice(0, 500), contentType, method: context.req.method, path: context.req.path }, 'Malformed JSON debug');
-      } catch { /* ignore logging errors */ }
+      const contentType = context.req.header('content-type') ?? '<none>';
+      const contentLength = context.req.header('content-length') ?? '<none>';
+      logger.error({ contentType, contentLength, method: context.req.method, path: context.req.path }, 'Malformed JSON debug');
 
       return context.json(
         formatPublicErrorPayload({
