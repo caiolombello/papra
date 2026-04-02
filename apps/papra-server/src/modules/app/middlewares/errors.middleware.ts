@@ -16,10 +16,6 @@ export function registerErrorMiddleware({ app }: { app: ServerInstance }) {
     }
 
     if (error.message === 'Malformed JSON in request body') {
-      const contentType = context.req.header('content-type') ?? '<none>';
-      const contentLength = context.req.header('content-length') ?? '<none>';
-      logger.error({ contentType, contentLength, method: context.req.method, path: context.req.path }, 'Malformed JSON debug');
-
       return context.json(
         formatPublicErrorPayload({
           message: 'Invalid request body',
