@@ -121,6 +121,8 @@ export async function createDocument({
     }
 
     const pdfBuffer = Buffer.concat(chunks);
+    // Always recreate stream from buffer since we consumed the original
+    resolvedFileStream = NodeReadable.from(pdfBuffer);
     const encrypted = await isPdfEncrypted(pdfBuffer);
 
     if (encrypted) {
