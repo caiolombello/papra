@@ -107,12 +107,22 @@ server.tool('papra_get_document', 'Get document metadata and properties (no text
   });
 });
 
-server.tool('papra_get_document_content', 'Get the extracted text content of a document. Only call when you need to read the actual text.', {
+server.tool('papra_get_document_content', 'Get the extracted text content of a document. Use offset/limit for large documents.', {
   organizationId: orgId,
   documentId: z.string(),
-}, async ({ organizationId, documentId }) => {
+  offset: z.number().optional().default(0).describe('Character offset to start from'),
+  limit: z.number().optional().default(8000).describe('Max characters to return (default 8000, 0 for all)'),
+}, async ({ organizationId, documentId, offset, limit }) => {
   const result = await api(`/api/organizations/${organizationId}/documents/${documentId}`);
-  return ok({ id: result.document.id, name: result.document.name, content: result.document.content });
+  const content = result.document.content ?? '';
+  const slice = limit > 0 ? content.slice(offset, offset + limit) : content.slice(offset);
+  return ok({
+    id: result.document.id, name: result.document.name,
+    contentLength: content.length,
+    offset, limit: limit > 0 ? limit : content.length,
+    hasMore: offset + slice.length < content.length,
+    content: slice,
+  });
 });
 
 server.tool('papra_get_document_statistics', 'Get document count and total storage size', {
@@ -348,11 +358,36 @@ server.tool('papra_list_meetings', 'List meetings (summary only, no chunks). Use
   });
 });
 
-server.tool('papra_get_meeting', 'Get full meeting details including transcript chunks', {
+server.tool('papra_get_meeting', 'Get meeting details with summary. Use get_meeting_transcript for chunks.', {
   organizationId: orgId, meetingId: z.string(),
 }, async ({ organizationId, meetingId }) => {
   const result = await client.getMeeting({ organizationId, meetingId });
-  return ok(result);
+  const m = result.meeting;
+  return ok({
+    ...summarizeMeeting(m),
+    sourceName: m.sourceName, language: m.language,
+    summary: m.summary,
+    chunksCount: m.chunks?.length ?? 0,
+  });
+});
+
+server.tool('papra_get_meeting_transcript', 'Get meeting transcript chunks with pagination. Each chunk has speaker, timestamps, and text.', {
+  organizationId: orgId, meetingId: z.string(),
+  offset: z.number().optional().default(0).describe('Chunk index to start from'),
+  limit: z.number().optional().default(30).describe('Max chunks to return (default 30, 0 for all)'),
+}, async ({ organizationId, meetingId, offset, limit }) => {
+  const result = await client.getMeeting({ organizationId, meetingId });
+  const chunks = result.meeting.chunks ?? [];
+  const slice = limit > 0 ? chunks.slice(offset, offset + limit) : chunks.slice(offset);
+  return ok({
+    id: result.meeting.id, title: result.meeting.title,
+    totalChunks: chunks.length,
+    offset, limit: limit > 0 ? limit : chunks.length,
+    hasMore: offset + slice.length < chunks.length,
+    chunks: slice.map((c: any) => ({
+      speaker: c.speaker, startedAtMs: c.startedAtMs, endedAtMs: c.endedAtMs, content: c.content,
+    })),
+  });
 });
 
 server.tool('papra_get_meeting_stats', 'Get meeting transcription statistics', {
