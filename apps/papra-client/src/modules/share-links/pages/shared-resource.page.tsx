@@ -74,6 +74,32 @@ function formatMs(ms: number | null) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+function groupChunksIntoParagraphs(chunks: { content: string; startedAtMs?: number | null; endedAtMs?: number | null }[]): string[] {
+  if (chunks.length === 0) return [];
+
+  const PAUSE_THRESHOLD_MS = 2000;
+  const MAX_CHUNKS_PER_PARAGRAPH = 6;
+
+  const paragraphs: string[] = [];
+  let current: string[] = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    current.push(chunks[i].content);
+
+    const isLast = i === chunks.length - 1;
+    const hasTimestamps = chunks[i].endedAtMs != null && chunks[i + 1]?.startedAtMs != null;
+    const pauseDetected = hasTimestamps && (chunks[i + 1].startedAtMs! - chunks[i].endedAtMs!) > PAUSE_THRESHOLD_MS;
+    const chunkLimitReached = !hasTimestamps && current.length >= MAX_CHUNKS_PER_PARAGRAPH;
+
+    if (isLast || pauseDetected || chunkLimitReached) {
+      paragraphs.push(current.join(' '));
+      current = [];
+    }
+  }
+
+  return paragraphs;
+}
+
 export const SharedResourcePage: Component = () => {
   const params = useParams();
   const [state, setState] = createSignal<'loading' | 'password' | 'loaded' | 'error'>('loading');
@@ -259,7 +285,7 @@ export const SharedResourcePage: Component = () => {
                     const hasSpeakers = chunks.some(c => c.speaker && c.speaker !== 'unknown');
                     const text = hasSpeakers
                       ? chunks.map(c => `[${c.speaker ?? 'Unknown'}]: ${c.content}`).join('\n\n')
-                      : chunks.map(c => c.content).join(' ');
+                      : groupChunksIntoParagraphs(chunks).join('\n\n');
                     navigator.clipboard.writeText(text).then(() => {
                       createToast({ type: 'success', message: 'Transcript copied to clipboard' });
                     }).catch(() => {
@@ -296,8 +322,8 @@ export const SharedResourcePage: Component = () => {
                       : (
                           <Card>
                             <CardContent class="pt-6">
-                              <div class="whitespace-pre-wrap text-sm leading-6">
-                                {chunks.map(c => c.content).join(' ')}
+                              <div class="whitespace-pre-wrap text-sm leading-7">
+                                {groupChunksIntoParagraphs(chunks).join('\n\n')}
                               </div>
                             </CardContent>
                           </Card>
