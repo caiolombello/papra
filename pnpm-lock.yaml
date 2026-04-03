@@ -870,6 +870,9 @@ importers:
       '@papra/api-sdk':
         specifier: workspace:*
         version: link:../api-sdk
+      ofetch:
+        specifier: 'catalog:'
+        version: 1.4.1
       zod:
         specifier: ^3.24.0
         version: 3.25.76

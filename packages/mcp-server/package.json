@@ -20,6 +20,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@papra/api-sdk": "workspace:*",
+    "ofetch": "catalog:",
     "zod": "^3.24.0"
   },
   "devDependencies": {
