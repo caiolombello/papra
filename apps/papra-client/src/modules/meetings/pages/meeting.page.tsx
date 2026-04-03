@@ -461,15 +461,18 @@ export const MeetingPage: Component = () => {
                                 <For each={availableQuery.data?.available ?? []}>
                                   {lang => (
                                     <DropdownMenuItem
-                                      disabled={lang.status === 'completed' || lang.status === 'processing'}
+                                      disabled={lang.status === 'processing'}
                                       onSelect={() => translateMutation.mutate(lang.targetLanguage)}
                                     >
                                       {lang.label}
                                       <Show when={lang.status === 'completed'}>
-                                        <div class="i-tabler-check size-4 ml-2 text-green-500" />
+                                        <span class="ml-2 text-xs text-muted-foreground">(re-translate)</span>
                                       </Show>
                                       <Show when={lang.status === 'processing'}>
                                         <div class="i-tabler-loader-2 size-4 ml-2 animate-spin" />
+                                      </Show>
+                                      <Show when={lang.status === 'failed'}>
+                                        <span class="ml-2 text-xs text-destructive">failed — retry</span>
                                       </Show>
                                     </DropdownMenuItem>
                                   )}

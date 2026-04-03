@@ -1,6 +1,7 @@
 import type { RouteDefinitionContext } from '../../app/server.types';
 import { safely } from '@corentinth/chisels';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { API_KEY_PERMISSIONS } from '../../api-keys/api-keys.constants';
 import { requireAuthentication } from '../../app/auth/auth.middleware';
 import { getUser } from '../../app/auth/auth.models';
@@ -13,6 +14,7 @@ import { validateJsonBody, validateParams } from '../../shared/validation/valida
 import { createMeetingsRepository } from '../meetings.repository';
 import { meetingIdSchema } from '../meetings.schemas';
 import { createMeetingTranslationsRepository } from './meeting-translations.repository';
+import { meetingTranslationsTable, meetingTranslationChunksTable } from './meeting-translations.tables';
 
 const logger = createLogger({ namespace: 'meeting-translations.routes' });
 
@@ -39,6 +41,7 @@ export function registerMeetingTranslationsRoutes(context: RouteDefinitionContex
   setupTranslateMeetingRoute(context);
   setupListTranslationsRoute(context);
   setupGetTranslationRoute(context);
+  setupDeleteTranslationRoute(context);
 }
 
 function setupGetAvailableLanguagesRoute({ app, db }: RouteDefinitionContext) {
@@ -101,13 +104,16 @@ function setupTranslateMeetingRoute({ app, db, config }: RouteDefinitionContext)
       const { meeting } = await meetingsRepository.getMeetingById({ organizationId, meetingId });
       if (!meeting) throw createError({ message: 'Meeting not found', code: 'meetings.not-found', statusCode: 404 });
 
-      // Check if translation already exists
+      // If already processing, reject
       const { translation: existing } = await translationsRepository.getTranslationByMeetingAndTarget({ meetingId, targetLanguage });
-      if (existing?.status === 'completed') {
-        throw createError({ message: 'Translation already exists', code: 'translations.already-exists', statusCode: 409 });
-      }
       if (existing?.status === 'processing') {
         throw createError({ message: 'Translation is already in progress', code: 'translations.in-progress', statusCode: 409 });
+      }
+
+      // If completed or failed, delete and re-create (allows regeneration)
+      if (existing) {
+        await db.delete(meetingTranslationChunksTable).where(eq(meetingTranslationChunksTable.translationId, existing.id));
+        await db.delete(meetingTranslationsTable).where(eq(meetingTranslationsTable.id, existing.id));
       }
 
       const sourceLanguage = meeting.language ?? 'en';
@@ -117,7 +123,6 @@ function setupTranslateMeetingRoute({ app, db, config }: RouteDefinitionContext)
         throw createError({ message: 'Meeting has no transcript to translate', code: 'translations.no-transcript', statusCode: 400 });
       }
 
-      // Create translation record
       const { translation } = await translationsRepository.createTranslation({
         meetingId,
         organizationId,
@@ -130,18 +135,21 @@ function setupTranslateMeetingRoute({ app, db, config }: RouteDefinitionContext)
       // Process translation async
       setImmediate(async () => {
         const [, error] = await safely(async () => {
-          await translateChunks({
-            translationId,
+          const translatedChunks = await translateChunks({
             chunks,
             sourceLanguage,
             targetLanguage,
             openaiApiKey,
             model: config.autofill.model,
-            translationsRepository,
           });
 
+          if (translatedChunks.length === 0) {
+            throw new Error('Translation produced 0 chunks — LLM response may have been malformed');
+          }
+
+          await translationsRepository.insertTranslationChunks({ translationId, chunks: translatedChunks });
           await translationsRepository.updateTranslationStatus({ translationId, status: 'completed' });
-          logger.info({ translationId, meetingId, targetLanguage, chunksCount: chunks.length }, 'Translation completed');
+          logger.info({ translationId, meetingId, targetLanguage, inputChunks: chunks.length, outputChunks: translatedChunks.length }, 'Translation completed');
         });
 
         if (error) {
@@ -155,17 +163,18 @@ function setupTranslateMeetingRoute({ app, db, config }: RouteDefinitionContext)
   );
 }
 
-async function translateChunks({ translationId, chunks, sourceLanguage, targetLanguage, openaiApiKey, model, translationsRepository }: {
-  translationId: string;
+async function translateChunks({ chunks, sourceLanguage, targetLanguage, openaiApiKey, model }: {
   chunks: { chunkIndex: number; speaker: string | null; content: string }[];
   sourceLanguage: string;
   targetLanguage: string;
   openaiApiKey: string;
   model: string;
-  translationsRepository: ReturnType<typeof createMeetingTranslationsRepository>;
 }) {
   const BATCH_SIZE = 20;
   const allTranslated: { chunkIndex: number; speaker: string | null; content: string }[] = [];
+
+  const sourceName = LANGUAGE_LABELS[sourceLanguage] ?? sourceLanguage;
+  const targetName = LANGUAGE_LABELS[targetLanguage] ?? targetLanguage;
 
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const batch = chunks.slice(i, i + BATCH_SIZE);
@@ -175,9 +184,6 @@ async function translateChunks({ translationId, chunks, sourceLanguage, targetLa
       speaker: c.speaker,
       content: c.content,
     }));
-
-    const sourceName = LANGUAGE_LABELS[sourceLanguage] ?? sourceLanguage;
-    const targetName = LANGUAGE_LABELS[targetLanguage] ?? targetLanguage;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -190,10 +196,12 @@ async function translateChunks({ translationId, chunks, sourceLanguage, targetLa
         messages: [{
           role: 'user',
           content: `Translate the following transcript chunks from ${sourceName} to ${targetName}.
-Return ONLY a JSON array where each element has "index" (number), "speaker" (string or null, keep as-is), and "content" (translated string).
-Preserve the meaning, tone, and speaker attribution. Do not add or remove chunks.
 
-Input:
+IMPORTANT: Return a JSON object with a "chunks" key containing an array.
+Each element must have: "index" (number, same as input), "speaker" (string or null, keep original), "content" (translated string).
+Translate ALL chunks. Do not skip any. Do not add new ones.
+
+Input (${batch.length} chunks):
 ${JSON.stringify(inputJson)}`,
         }],
         temperature: 0.1,
@@ -202,26 +210,58 @@ ${JSON.stringify(inputJson)}`,
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      const body = await response.text();
+      throw new Error(`OpenAI API error ${response.status}: ${body.slice(0, 200)}`);
     }
 
     const data = await response.json() as { choices: { message: { content: string } }[] };
-    const parsed = JSON.parse(data.choices[0]?.message?.content ?? '{}') as any;
-    const translated: any[] = Array.isArray(parsed) ? parsed : parsed.chunks ?? parsed.translations ?? parsed.result ?? [];
+    const rawContent = data.choices[0]?.message?.content ?? '{}';
+    const parsed = JSON.parse(rawContent) as any;
+
+    // Extract array from various possible response shapes
+    const translated: any[] = parsed.chunks ?? parsed.translations ?? parsed.result ?? parsed.data
+      ?? (Array.isArray(parsed) ? parsed : []);
+
+    if (translated.length === 0) {
+      logger.warn({ batchStart: i, batchSize: batch.length, rawContent: rawContent.slice(0, 300) }, 'LLM returned 0 translated chunks for batch');
+    }
 
     for (const item of translated) {
-      allTranslated.push({
-        chunkIndex: item.index,
-        speaker: item.speaker ?? null,
-        content: item.content,
-      });
+      if (item && typeof item.content === 'string') {
+        allTranslated.push({
+          chunkIndex: typeof item.index === 'number' ? item.index : batch[0].chunkIndex + allTranslated.length,
+          speaker: item.speaker ?? null,
+          content: item.content,
+        });
+      }
     }
   }
 
-  await translationsRepository.insertTranslationChunks({
-    translationId,
-    chunks: allTranslated,
-  });
+  return allTranslated;
+}
+
+function setupDeleteTranslationRoute({ app, db }: RouteDefinitionContext) {
+  app.delete(
+    '/api/organizations/:organizationId/meetings/:meetingId/translations/:translationId',
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.DOCUMENTS.UPDATE] }),
+    validateParams(z.object({
+      organizationId: organizationIdSchema,
+      meetingId: meetingIdSchema,
+      translationId: z.string(),
+    })),
+    async (context) => {
+      const { userId } = getUser({ context });
+      const { organizationId, translationId } = context.req.valid('param');
+
+      const organizationsRepository = createOrganizationsRepository({ db });
+      await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
+
+      await db.delete(meetingTranslationChunksTable).where(eq(meetingTranslationChunksTable.translationId, translationId));
+      await db.delete(meetingTranslationsTable).where(eq(meetingTranslationsTable.id, translationId));
+
+      return context.body(null, 204);
+    },
+  );
 }
 
 function setupListTranslationsRoute({ app, db }: RouteDefinitionContext) {
