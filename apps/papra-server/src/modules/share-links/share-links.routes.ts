@@ -10,6 +10,7 @@ import { createError } from '../shared/errors/errors';
 import { validateJsonBody, validateParams, validateQuery } from '../shared/validation/validation';
 import { createDocumentsRepository } from '../documents/documents.repository';
 import { createMeetingsRepository } from '../meetings/meetings.repository';
+import { createMeetingTranslationsRepository } from '../meetings/translations/meeting-translations.repository';
 import { createAuditLogger } from '../security-audit/security-audit.service';
 import { createShareLinksRepository, verifyPassword } from './share-links.repository';
 
@@ -231,6 +232,21 @@ function setupAccessShareLinkRoute({ app, db, documentsStorageService }: RouteDe
 
         const { chunks } = await meetingsRepository.getMeetingChunks({ meetingId: shareLink.resourceId });
 
+        // Include completed translations
+        const translationsRepository = createMeetingTranslationsRepository({ db });
+        const { translations } = await translationsRepository.getTranslationsByMeetingId({ meetingId: shareLink.resourceId });
+        const completedTranslations = await Promise.all(
+          translations.filter(t => t.status === 'completed').map(async (t) => {
+            const { chunks: tChunks } = await translationsRepository.getTranslationChunks({ translationId: t.id });
+            return {
+              id: t.id,
+              targetLanguage: t.targetLanguage,
+              status: t.status,
+              chunks: tChunks.map(c => ({ speaker: c.speaker, content: c.content })),
+            };
+          }),
+        );
+
         return context.json({
           type: 'meeting',
           meeting: {
@@ -245,6 +261,7 @@ function setupAccessShareLinkRoute({ app, db, documentsStorageService }: RouteDe
               endedAtMs: c.endedAtMs,
               content: c.content,
             })),
+            translations: completedTranslations,
           },
         });
       }

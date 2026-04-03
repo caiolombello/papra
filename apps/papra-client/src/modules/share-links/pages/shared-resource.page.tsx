@@ -1,8 +1,11 @@
 import type { Component } from 'solid-js';
 import { useParams } from '@solidjs/router';
 import { createSignal, For, Match, Show, Switch } from 'solid-js';
+import { Badge } from '@/modules/ui/components/badge';
 import { Button } from '@/modules/ui/components/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/modules/ui/components/card';
+import { createToast } from '@/modules/ui/components/sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/modules/ui/components/tabs';
 import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
 
 type SharedDocument = {
@@ -13,13 +16,16 @@ type SharedDocument = {
   createdAt: number;
 };
 
+type MeetingChunk = { speaker: string | null; startedAtMs: number | null; endedAtMs: number | null; content: string };
+
 type SharedMeeting = {
   title: string;
   summary: string | null;
   language: string | null;
   context: string | null;
   createdAt: number;
-  chunks: { speaker: string | null; startedAtMs: number | null; endedAtMs: number | null; content: string }[];
+  chunks: MeetingChunk[];
+  translations?: { id: string; targetLanguage: string; status: string; chunks?: { speaker: string | null; content: string }[] }[];
 };
 
 type SharedResource =
@@ -237,6 +243,67 @@ export const SharedResourcePage: Component = () => {
               <Match when={resource() && 'type' in resource()! && (resource() as any).type === 'meeting'}>
                 {(() => {
                   const meeting = () => (resource() as { type: 'meeting'; meeting: SharedMeeting }).meeting;
+                  const [activeTab, setActiveTab] = createSignal('original');
+
+                  const completedTranslations = () => (meeting().translations ?? []).filter(t => t.status === 'completed' && t.chunks?.length);
+
+                  const getActiveChunks = (): { speaker: string | null; content: string }[] => {
+                    const tab = activeTab();
+                    if (tab === 'original') return meeting().chunks;
+                    const translation = completedTranslations().find(t => t.targetLanguage === tab);
+                    return translation?.chunks ?? [];
+                  };
+
+                  const copyTranscript = () => {
+                    const chunks = getActiveChunks();
+                    const hasSpeakers = chunks.some(c => c.speaker && c.speaker !== 'unknown');
+                    const text = hasSpeakers
+                      ? chunks.map(c => `[${c.speaker ?? 'Unknown'}]: ${c.content}`).join('\n\n')
+                      : chunks.map(c => c.content).join(' ');
+                    navigator.clipboard.writeText(text).then(() => {
+                      createToast({ type: 'success', message: 'Transcript copied to clipboard' });
+                    }).catch(() => {
+                      createToast({ type: 'error', message: 'Failed to copy' });
+                    });
+                  };
+
+                  const renderChunks = (chunks: { speaker: string | null; content: string; startedAtMs?: number | null; endedAtMs?: number | null }[]) => {
+                    const hasSpeakers = chunks.some(c => c.speaker && c.speaker !== 'unknown');
+                    return hasSpeakers
+                      ? (
+                          <div class="space-y-3">
+                            <For each={chunks}>
+                              {chunk => (
+                                <Card>
+                                  <CardHeader class="pb-3">
+                                    <div class="flex flex-wrap items-center justify-between gap-2">
+                                      <Badge variant="outline">{chunk.speaker}</Badge>
+                                      <Show when={chunk.startedAtMs != null}>
+                                        <div class="text-xs text-muted-foreground">
+                                          {formatMs(chunk.startedAtMs ?? null)}
+                                        </div>
+                                      </Show>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent>
+                                    <div class="whitespace-pre-wrap text-sm leading-6">{chunk.content}</div>
+                                  </CardContent>
+                                </Card>
+                              )}
+                            </For>
+                          </div>
+                        )
+                      : (
+                          <Card>
+                            <CardContent class="pt-6">
+                              <div class="whitespace-pre-wrap text-sm leading-6">
+                                {chunks.map(c => c.content).join(' ')}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                  };
+
                   return (
                     <>
                       <Card>
@@ -265,26 +332,52 @@ export const SharedResourcePage: Component = () => {
                         </Show>
                       </Card>
 
-                      <h3 class="text-base sm:text-lg font-semibold mt-4 sm:mt-6 mb-3">Transcript</h3>
-                      <div class="space-y-0.5">
-                        <For each={meeting().chunks}>
-                          {chunk => (
-                            <div class="flex gap-2 sm:gap-3 py-2 px-2 sm:px-3 rounded hover:bg-muted/50">
-                              <Show when={chunk.startedAtMs !== null}>
-                                <span class="text-xs text-muted-foreground font-mono w-10 sm:w-12 flex-shrink-0 pt-0.5">
-                                  {formatMs(chunk.startedAtMs)}
-                                </span>
-                              </Show>
-                              <div class="flex-1 min-w-0">
-                                <Show when={chunk.speaker}>
-                                  <span class="text-xs font-medium text-primary mr-2 block sm:inline">{chunk.speaker}</span>
-                                </Show>
-                                <span class="text-sm leading-6">{chunk.content}</span>
-                              </div>
-                            </div>
-                          )}
-                        </For>
+                      <div class="flex items-center justify-between mt-4 sm:mt-6 mb-3">
+                        <h3 class="text-base sm:text-lg font-semibold">Transcript</h3>
+                        <Show when={meeting().chunks.length > 0}>
+                          <Button variant="outline" size="sm" onClick={copyTranscript}>
+                            <div class="i-tabler-copy size-4 mr-1.5" />
+                            Copy transcript
+                          </Button>
+                        </Show>
                       </div>
+
+                      <Show
+                        when={meeting().chunks.length > 0}
+                        fallback={<div class="text-sm text-muted-foreground">No transcript available.</div>}
+                      >
+                        <Show
+                          when={completedTranslations().length > 0}
+                          fallback={renderChunks(meeting().chunks)}
+                        >
+                          <Tabs value={activeTab()} onChange={setActiveTab}>
+                            <TabsList>
+                              <TabsTrigger value="original">
+                                Original ({meeting().language ?? '?'})
+                              </TabsTrigger>
+                              <For each={completedTranslations()}>
+                                {translation => (
+                                  <TabsTrigger value={translation.targetLanguage}>
+                                    {translation.targetLanguage}
+                                  </TabsTrigger>
+                                )}
+                              </For>
+                            </TabsList>
+
+                            <TabsContent value="original" class="mt-4">
+                              {renderChunks(meeting().chunks)}
+                            </TabsContent>
+
+                            <For each={completedTranslations()}>
+                              {translation => (
+                                <TabsContent value={translation.targetLanguage} class="mt-4">
+                                  {renderChunks(translation.chunks ?? [])}
+                                </TabsContent>
+                              )}
+                            </For>
+                          </Tabs>
+                        </Show>
+                      </Show>
                     </>
                   );
                 })()}
