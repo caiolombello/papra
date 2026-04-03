@@ -3,6 +3,7 @@ import { registerExtractDocumentFileContentTask } from '../documents/tasks/extra
 import { registerHardDeleteExpiredDocumentsTask } from '../documents/tasks/hard-delete-expired-documents.task';
 import { registerExpireInvitationsTask } from '../organizations/tasks/expire-invitations.task';
 import { registerPurgeExpiredOrganizationsTask } from '../organizations/tasks/purge-expired-organizations.task';
+import { registerExpireStaleUploadingMeetingsTask } from '../meetings/tasks/expire-stale-uploading-meetings.task';
 import { registerApplyTaggingRuleToDocumentsTask } from '../tagging-rules/tasks/apply-tagging-rule-to-documents.task';
 
 export async function registerTaskDefinitions(deps: GlobalDependencies) {
@@ -11,4 +12,5 @@ export async function registerTaskDefinitions(deps: GlobalDependencies) {
   await registerPurgeExpiredOrganizationsTask(deps);
   await registerExtractDocumentFileContentTask(deps);
   await registerApplyTaggingRuleToDocumentsTask(deps);
+  await registerExpireStaleUploadingMeetingsTask(deps);
 }
