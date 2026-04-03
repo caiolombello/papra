@@ -1,0 +1,9 @@
+# File Integrity Monitor — paths to watch
+# One file per line, # comments
+
+/opt/papra/.env
+/opt/papra/secrets.map
+/etc/meeting-transcriber.env
+/etc/gitlab-runner/config.toml
+/etc/cron.d/papra-sqlite-backup
+/etc/cron.d/papra-healthchecks
