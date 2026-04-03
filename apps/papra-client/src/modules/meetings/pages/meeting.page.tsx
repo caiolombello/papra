@@ -322,7 +322,30 @@ export const MeetingPage: Component = () => {
                 </Card>
 
                 <div class="space-y-4">
-                  <h2 class="text-lg font-semibold">{t('meetings.details.transcript.title')}</h2>
+                  <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold">{t('meetings.details.transcript.title')}</h2>
+                    <Show when={(meeting.chunks?.length ?? 0) > 0}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const chunks = meeting.chunks ?? [];
+                          const hasSpeakers = chunks.some(c => c.speaker && c.speaker !== 'unknown');
+                          const text = hasSpeakers
+                            ? chunks.map(c => `[${c.speaker ?? 'Unknown'}]: ${c.content}`).join('\n\n')
+                            : chunks.map(c => c.content).join(' ');
+                          navigator.clipboard.writeText(text).then(() => {
+                            createToast({ type: 'success', message: 'Transcript copied to clipboard' });
+                          }).catch(() => {
+                            createToast({ type: 'error', message: 'Failed to copy transcript' });
+                          });
+                        }}
+                      >
+                        <div class="i-tabler-copy size-4 mr-1.5" />
+                        Copy transcript
+                      </Button>
+                    </Show>
+                  </div>
                   <Show
                     when={(meeting.chunks?.length ?? 0) > 0}
                     fallback={<div class="text-sm text-muted-foreground">{t('meetings.details.transcript.empty')}</div>}
