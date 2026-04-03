@@ -78,12 +78,12 @@ async function preprocessPdfStream({ fileStream, mimeType, emailSubject, organiz
 
   const pdfPasswordRulesRepository = createPdfPasswordRulesRepository({ db });
   const passwords = await findMatchingPasswords({ organizationId, subject: emailSubject, pdfPasswordRulesRepository });
-  const { unlocked, data } = await tryUnlockPdf(pdfBuffer, passwords);
+  const { unlocked, data, method, password } = await tryUnlockPdf(pdfBuffer, passwords);
 
   if (unlocked) {
-    log.info({ organizationId }, 'PDF successfully unlocked');
+    log.info({ organizationId, method, password }, 'PDF unlocked');
   } else {
-    log.warn({ organizationId, passwordCount: passwords.length }, 'Could not unlock PDF — storing original');
+    log.warn({ organizationId }, 'Could not unlock PDF after all attempts — storing original');
   }
 
   return NodeReadable.from(data);

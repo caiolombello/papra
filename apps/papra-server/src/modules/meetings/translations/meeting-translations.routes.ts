@@ -229,7 +229,7 @@ ${JSON.stringify(inputJson)}`,
     for (const item of translated) {
       if (item && typeof item.content === 'string') {
         allTranslated.push({
-          chunkIndex: typeof item.index === 'number' ? item.index : batch[0].chunkIndex + allTranslated.length,
+          chunkIndex: typeof item.index === 'number' ? item.index : (batch[0]?.chunkIndex ?? 0) + allTranslated.length,
           speaker: item.speaker ?? null,
           content: item.content,
         });
