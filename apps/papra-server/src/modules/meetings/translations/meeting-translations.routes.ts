@@ -35,10 +35,10 @@ const LANGUAGE_LABELS: Record<string, string> = {
 };
 
 export function registerMeetingTranslationsRoutes(context: RouteDefinitionContext) {
+  setupGetAvailableLanguagesRoute(context);
   setupTranslateMeetingRoute(context);
   setupListTranslationsRoute(context);
   setupGetTranslationRoute(context);
-  setupGetAvailableLanguagesRoute(context);
 }
 
 function setupGetAvailableLanguagesRoute({ app, db }: RouteDefinitionContext) {
