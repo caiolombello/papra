@@ -13,7 +13,8 @@ import { validateJsonBody, validateParams, validateQuery } from '../shared/valid
 import { createTagsRepository } from '../tags/tags.repository';
 import { normalizeTagName } from '../tags/tags.repository.models';
 import { tagIdSchema } from '../tags/tags.schemas';
-import { CopyObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { CopyObjectCommand } from '@aws-sdk/client-s3';
+import { createS3Client } from '../shared/s3/s3-client.factory';
 import { MEETING_STATUSES } from './meetings.constants';
 import { deleteMeetingArtifacts } from './meetings-artifacts.storage';
 import { createMeetingPlaybackPresignedUrl, isMeetingPlaybackEnabled } from './meetings-playback.storage';
@@ -432,15 +433,7 @@ function setupRetranscribeMeetingRoute({ app, db, config }: RouteDefinitionConte
       const bucketName = process.env.MEETINGS_SOURCE_STORAGE_BUCKET_NAME;
       if (bucketName) {
         const s3Config = config.documentsStorage.drivers.s3;
-        const s3Client = new S3Client({
-          region: s3Config.region,
-          endpoint: s3Config.endpoint,
-          forcePathStyle: s3Config.forcePathStyle,
-          credentials: {
-            accessKeyId: s3Config.accessKeyId,
-            secretAccessKey: s3Config.secretAccessKey,
-          },
-        });
+        const s3Client = createS3Client({ region: s3Config.region, endpoint: s3Config.endpoint, forcePathStyle: s3Config.forcePathStyle, accessKeyId: s3Config.accessKeyId, secretAccessKey: s3Config.secretAccessKey });
 
         await s3Client.send(new CopyObjectCommand({
           Bucket: bucketName,
@@ -494,15 +487,7 @@ function setupDiarizeMeetingRoute({ app, db, config }: RouteDefinitionContext) {
       const bucketName = process.env.MEETINGS_SOURCE_STORAGE_BUCKET_NAME;
       if (bucketName) {
         const s3Config = config.documentsStorage.drivers.s3;
-        const s3Client = new S3Client({
-          region: s3Config.region,
-          endpoint: s3Config.endpoint,
-          forcePathStyle: s3Config.forcePathStyle,
-          credentials: {
-            accessKeyId: s3Config.accessKeyId,
-            secretAccessKey: s3Config.secretAccessKey,
-          },
-        });
+        const s3Client = createS3Client({ region: s3Config.region, endpoint: s3Config.endpoint, forcePathStyle: s3Config.forcePathStyle, accessKeyId: s3Config.accessKeyId, secretAccessKey: s3Config.secretAccessKey });
 
         await s3Client.send(new CopyObjectCommand({
           Bucket: bucketName,

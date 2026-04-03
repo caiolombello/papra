@@ -1,6 +1,7 @@
 import type { Config } from '../config/config.types';
 import type { MeetingForApi } from './meetings.types';
-import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, type S3Client } from '@aws-sdk/client-s3';
+import { createS3Client } from '../shared/s3/s3-client.factory';
 import { posix as path } from 'node:path';
 
 const MEETINGS_SOURCE_STORAGE_BUCKET_NAME_ENV = 'MEETINGS_SOURCE_STORAGE_BUCKET_NAME';
@@ -111,14 +112,12 @@ function createS3ClientFromConfig({ config }: { config: Config }) {
 
   const s3 = config.documentsStorage.drivers.s3;
 
-  return new S3Client({
+  return createS3Client({
     region: s3.region,
     endpoint: s3.endpoint,
     forcePathStyle: s3.forcePathStyle,
-    credentials: {
-      accessKeyId: s3.accessKeyId,
-      secretAccessKey: s3.secretAccessKey,
-    },
+    accessKeyId: s3.accessKeyId,
+    secretAccessKey: s3.secretAccessKey,
   });
 }
 

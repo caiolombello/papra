@@ -1,8 +1,9 @@
 import type { Readable } from 'node:stream';
-import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 
 import { Upload } from '@aws-sdk/lib-storage';
 import { safely } from '@corentinth/chisels';
+import { createS3Client } from '../../../../shared/s3/s3-client.factory';
 import { isString } from '../../../../shared/utils';
 import { createFileAlreadyExistsInStorageError, createFileNotFoundError } from '../../document-storage.errors';
 import { defineStorageDriver } from '../drivers.models';
@@ -19,15 +20,7 @@ function isS3NotFoundError(error: Error) {
 export const s3StorageDriverFactory = defineStorageDriver(({ documentStorageConfig }) => {
   const { accessKeyId, secretAccessKey, bucketName, region, endpoint, forcePathStyle } = documentStorageConfig.drivers.s3;
 
-  const s3Client = new S3Client({
-    region,
-    endpoint,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
-    },
-    forcePathStyle,
-  });
+  const s3Client = createS3Client({ region, endpoint, forcePathStyle, accessKeyId, secretAccessKey });
 
   const fileExists = async ({ storageKey }: { storageKey: string }) => {
     const [, error] = await safely(s3Client.send(new HeadObjectCommand({

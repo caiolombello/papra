@@ -1,5 +1,6 @@
 import type { Config } from '../config/config.types';
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { createS3Client } from '../shared/s3/s3-client.factory';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const MEETINGS_SOURCE_STORAGE_BUCKET_NAME_ENV = 'MEETINGS_SOURCE_STORAGE_BUCKET_NAME';
@@ -29,14 +30,10 @@ export async function createMeetingPlaybackPresignedUrl({
 
   const s3Config = config.documentsStorage.drivers.s3;
 
-  const s3Client = new S3Client({
-    region: s3Config.region,
-    endpoint: s3Config.endpoint,
+  const s3Client = createS3Client({
+    region: s3Config.region, endpoint: s3Config.endpoint,
     forcePathStyle: s3Config.forcePathStyle,
-    credentials: {
-      accessKeyId: s3Config.accessKeyId,
-      secretAccessKey: s3Config.secretAccessKey,
-    },
+    accessKeyId: s3Config.accessKeyId, secretAccessKey: s3Config.secretAccessKey,
   });
 
   const command = new GetObjectCommand({
