@@ -16,11 +16,10 @@ export function registerAutofillPropertiesOnDocumentCreatedHandler({
   db: Database;
   config: Config;
 }) {
-  const openaiApiKey = process.env.OPENAI_API_KEY;
-  const isEnabled = process.env.AUTOFILL_PROPERTIES_ENABLED === 'true';
+  const { isEnabled, openaiApiKey, model, maxContentLength } = config.autofill;
 
   if (!isEnabled || !openaiApiKey) {
-    logger.debug('Autofill properties handler disabled (AUTOFILL_PROPERTIES_ENABLED or OPENAI_API_KEY not set)');
+    logger.debug('Autofill properties handler disabled');
     return;
   }
 
@@ -46,8 +45,6 @@ export function registerAutofillPropertiesOnDocumentCreatedHandler({
         `- "${p.key}" (tipo: ${p.type}): ${p.description || p.name}`,
       ).join('\n');
 
-      const contentTruncated = document.content.slice(0, 4000);
-
       const prompt = `Analise o seguinte documento e extraia os metadados solicitados.
 Retorne APENAS um JSON válido com as chaves abaixo. Se não encontrar um valor, use null.
 Para campos tipo "date", use formato ISO (YYYY-MM-DD).
@@ -61,7 +58,7 @@ Nome do arquivo: ${document.name}
 ${document.sourceEmail ? `Remetente do email: ${document.sourceEmail}` : ''}
 
 Texto do documento:
-${contentTruncated}`;
+${document.content.slice(0, maxContentLength)}`;
 
       const [response, fetchError] = await safely(async () => {
         const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -71,7 +68,7 @@ ${contentTruncated}`;
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-4o-mini',
+            model,
             messages: [{ role: 'user', content: prompt }],
             temperature: 0,
             response_format: { type: 'json_object' },
@@ -99,7 +96,8 @@ ${contentTruncated}`;
         return;
       }
 
-      logger.info({ documentId: document.id, extractedKeys: Object.keys(parsed).filter(k => parsed[k] != null) }, 'Autofill extracted properties');
+      const extractedKeys = Object.keys(parsed).filter(k => parsed[k] != null);
+      logger.info({ documentId: document.id, extractedKeys }, 'Autofill extracted properties');
 
       for (const propDef of propertyDefinitions) {
         const value = parsed[propDef.key];
@@ -121,7 +119,7 @@ ${contentTruncated}`;
         }
       }
 
-      logger.info({ documentId: document.id }, 'Autofill properties completed');
+      logger.info({ documentId: document.id, propsSet: extractedKeys.length }, 'Autofill completed');
     },
   });
 }

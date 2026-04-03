@@ -9,6 +9,7 @@ import { ensureAuthSecretIsNotDefaultInProduction } from '../app/auth/auth.confi
 import { databaseConfig } from '../app/database/database.config';
 import { customPropertiesConfig } from '../custom-properties/custom-properties.config';
 import { documentSearchConfig } from '../documents/document-search/document-search.config';
+import { autofillConfig } from '../documents/autofill/autofill.config';
 import { documentsConfig } from '../documents/documents.config';
 import { documentStorageConfig } from '../documents/storage/document-storage.config';
 import { emailsConfig } from '../emails/emails.config';
@@ -144,6 +145,7 @@ export const configDefinition = {
 
   database: databaseConfig,
   documents: documentsConfig,
+  autofill: autofillConfig,
   documentsStorage: documentStorageConfig,
   documentSearch: documentSearchConfig,
   auth: authConfig,

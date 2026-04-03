@@ -10,11 +10,13 @@ import { organizationIdSchema } from '../organizations/organization.schemas';
 import { createOrganizationsRepository } from '../organizations/organizations.repository';
 import { ensureUserIsInOrganization } from '../organizations/organizations.usecases';
 import { createPlansRepository } from '../plans/plans.repository';
+import { and, desc, eq, gt, sql } from 'drizzle-orm';
 import { createError } from '../shared/errors/errors';
 import { getHeader } from '../shared/headers/headers.models';
 import { addLogContext, createLogger } from '../shared/logger/logger';
 import { isNil } from '../shared/utils';
 import { validateFormData, validateJsonBody, validateParams, validateQuery } from '../shared/validation/validation';
+import { intakeEmailLogTable } from './intake-email-log.table';
 import { createSubscriptionsRepository } from '../subscriptions/subscriptions.repository';
 import { createUsersRepository } from '../users/users.repository';
 import { INTAKE_EMAILS_INGEST_ROUTE } from './intake-emails.constants';
@@ -54,9 +56,6 @@ function setupGetIntakeEmailLogRoute({ app, db }: RouteDefinitionContext) {
 
       const organizationsRepository = createOrganizationsRepository({ db });
       await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
-
-      const { intakeEmailLogTable } = await import('./intake-email-log.table');
-      const { desc, eq, sql } = await import('drizzle-orm');
 
       const [entries, countResult] = await Promise.all([
         db.select()
@@ -237,58 +236,8 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
 
       // Parse multipart form data from the buffered body
       const contentType = context.req.header('content-type') ?? '';
-      const { Readable } = await import('node:stream');
-      const createBusboy = (await import('busboy')).default;
-      const { Buffer } = await import('node:buffer');
-
-      const bodyBytes = Buffer.from(bodyBuffer);
-      logger.info({ bodySize: bodyBytes.length, contentType }, 'Parsing intake email multipart body');
-
-      type ParsedAttachment = { filename: string; mimeType: string; buffer: Buffer };
-      const { email, attachments } = await new Promise<{ email: any; attachments: ParsedAttachment[] }>((resolve, reject) => {
-        let emailJson: any = null;
-        const files: ParsedAttachment[] = [];
-
-        const bb = createBusboy({
-          headers: { 'content-type': contentType },
-          limits: { files: 20 },
-          defParamCharset: 'utf8',
-        });
-
-        bb.on('field', (name: string, value: string) => {
-          if (name === 'email') {
-            try { emailJson = JSON.parse(value); } catch { emailJson = null; }
-          }
-        });
-
-        bb.on('file', (name: string, stream: any, info: any) => {
-          if (!name.startsWith('attachments')) {
-            stream.resume();
-            return;
-          }
-          const chunks: Buffer[] = [];
-          stream.on('data', (chunk: Buffer) => chunks.push(chunk));
-          stream.on('end', () => {
-            const buffer = Buffer.concat(chunks);
-            logger.info({ filename: info.filename, fileSize: buffer.length, mime: info.mimeType }, 'Parsed attachment from multipart');
-            files.push({ filename: info.filename || 'file', mimeType: info.mimeType || 'application/octet-stream', buffer });
-          });
-        });
-
-        bb.on('close', () => {
-          logger.info({ emailParsed: !!emailJson, fileCount: files.length }, 'Multipart parsing complete');
-          resolve({ email: emailJson, attachments: files });
-        });
-        bb.on('error', (err: Error) => {
-          logger.error({ error: err }, 'Busboy parsing error');
-          reject(err);
-        });
-
-        const readable = new Readable();
-        readable.push(bodyBytes);
-        readable.push(null);
-        readable.pipe(bb);
-      });
+      const { parseMultipartIntakeEmail } = await import('./intake-emails.parsing');
+      const { email, attachments } = await parseMultipartIntakeEmail({ bodyBuffer, contentType });
 
       if (!email?.from?.address) {
         throw createError({ message: 'Invalid email payload', code: 'intake_emails.invalid_payload', statusCode: 400 });
@@ -325,17 +274,12 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         // Email services not configured, skip notifications
       }
 
-      // Resolve intake email to get organizationId
-      const { Readable: ReadableStream } = await import('node:stream');
-
       for (const recipientAddress of recipientsAddresses) {
         const { intakeEmail } = await intakeEmailsRepository.getIntakeEmailByEmailAddress({ emailAddress: recipientAddress });
         if (!intakeEmail || !intakeEmail.isEnabled) continue;
 
         // Dedup: skip if we already successfully processed this exact email recently
         try {
-          const { intakeEmailLogTable } = await import('./intake-email-log.table');
-          const { and, eq, gt } = await import('drizzle-orm');
           const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
           const existing = await db.select({ id: intakeEmailLogTable.id })
             .from(intakeEmailLogTable)
@@ -383,7 +327,6 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         // Log intake email
         if (db) {
           try {
-            const { intakeEmailLogTable } = await import('./intake-email-log.table');
             await db.insert(intakeEmailLogTable).values({
               organizationId: intakeEmail.organizationId,
               intakeEmailId: intakeEmail.id,
