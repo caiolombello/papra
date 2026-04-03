@@ -57,6 +57,7 @@ export async function createDocument({
   userId,
   organizationId,
   emailSubject,
+  sourceEmail,
   ocrLanguages = [],
   isContentExtractionEnabled = true,
   storagePatternConfig,
@@ -80,6 +81,7 @@ export async function createDocument({
   userId?: string;
   organizationId: string;
   emailSubject?: string;
+  sourceEmail?: string;
   ocrLanguages?: string[];
   isContentExtractionEnabled?: boolean;
   storagePatternConfig: StoragePatternConfig;
@@ -208,6 +210,7 @@ export async function createDocument({
         hash,
         userId,
         organizationId,
+        sourceEmail,
         documentsRepository,
         documentsStorageService,
         plansRepository,
@@ -228,7 +231,7 @@ export async function createDocument({
 }
 
 export type CreateDocumentUsecase = Awaited<ReturnType<typeof createDocumentCreationUsecase>>;
-export type DocumentUsecaseDependencies = Omit<Parameters<typeof createDocument>[0], 'fileStream' | 'fileName' | 'mimeType' | 'userId' | 'organizationId' | 'emailSubject'>;
+export type DocumentUsecaseDependencies = Omit<Parameters<typeof createDocument>[0], 'fileStream' | 'fileName' | 'mimeType' | 'userId' | 'organizationId' | 'emailSubject' | 'sourceEmail'>;
 
 export function createDocumentCreationUsecase({
   db,
@@ -267,6 +270,7 @@ export function createDocumentCreationUsecase({
     userId?: string;
     organizationId: string;
     emailSubject?: string;
+    sourceEmail?: string;
   }) => createDocument({ taskServices, documentsStorageService, eventServices, db, ...args, ...deps });
 }
 
@@ -323,6 +327,7 @@ async function createNewDocument({
   hash,
   userId,
   organizationId,
+  sourceEmail,
   plansRepository,
   subscriptionsRepository,
   documentsRepository,
@@ -340,6 +345,7 @@ async function createNewDocument({
   hash: string;
   userId?: string;
   organizationId: string;
+  sourceEmail?: string;
   documentId: string;
   documentsRepository: DocumentsRepository;
   documentsStorageService: DocumentStorageService;
@@ -376,6 +382,7 @@ async function createNewDocument({
     fileEncryptionKeyWrapped: newFileStorageContext.fileEncryptionKeyWrapped,
     mimeType,
     originalSha256Hash: hash,
+    sourceEmail,
   }));
 
   if (error) {

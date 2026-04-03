@@ -4,6 +4,7 @@ import type { TrackingServices } from '../../tracking/tracking.services';
 import type { Database } from '../database/database.types';
 import type { EventServices } from './events.services';
 import { registerSyncDocumentSearchEventHandlers } from '../../documents/document-search/events/sync-document-search.handlers';
+import { registerAutofillPropertiesOnDocumentCreatedHandler } from '../../documents/events/autofill-properties.document-created';
 import { registerInsertActivityLogOnDocumentCreatedHandler } from '../../documents/events/activity-log.document-created';
 import { registerInsertActivityLogOnDocumentRestoredHandler } from '../../documents/events/activity-log.document-restored';
 import { registerInsertActivityLogOnDocumentTrashedHandler } from '../../documents/events/activity-log.document-trashed';
@@ -27,4 +28,5 @@ export function registerEventHandlers(deps: { trackingServices: TrackingServices
   registerTriggerWebhooksOnDocumentUpdatedHandler(deps);
   registerInsertActivityLogOnDocumentUpdatedHandler(deps);
   registerSyncDocumentSearchEventHandlers(deps);
+  registerAutofillPropertiesOnDocumentCreatedHandler(deps);
 }

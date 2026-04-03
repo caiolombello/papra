@@ -332,6 +332,27 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
         const { intakeEmail } = await intakeEmailsRepository.getIntakeEmailByEmailAddress({ emailAddress: recipientAddress });
         if (!intakeEmail || !intakeEmail.isEnabled) continue;
 
+        // Dedup: skip if we already successfully processed this exact email recently
+        try {
+          const { intakeEmailLogTable } = await import('./intake-email-log.table');
+          const { and, eq, gt } = await import('drizzle-orm');
+          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+          const existing = await db.select({ id: intakeEmailLogTable.id })
+            .from(intakeEmailLogTable)
+            .where(and(
+              eq(intakeEmailLogTable.fromAddress, fromAddress),
+              eq(intakeEmailLogTable.subject, subject),
+              eq(intakeEmailLogTable.status, 'success'),
+              gt(intakeEmailLogTable.createdAt, fiveMinutesAgo),
+            ))
+            .limit(1);
+
+          if (existing.length > 0) {
+            logger.info({ fromAddress, subject }, 'Duplicate intake email detected, skipping');
+            continue;
+          }
+        } catch { /* dedup check should not block processing */ }
+
         const docIds: string[] = [];
         const docErrors: string[] = [];
 
@@ -349,6 +370,7 @@ function setupIngestIntakeEmailRoute({ app, db, config, taskServices, documentsS
               mimeType: attachment.mimeType,
               organizationId: intakeEmail.organizationId,
               emailSubject: subject,
+              sourceEmail: fromAddress,
             });
             docIds.push(document.id);
             logger.info({ documentId: document.id, size: document.originalSize }, 'Document created from intake buffer');

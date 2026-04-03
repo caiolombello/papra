@@ -68,6 +68,7 @@ describe('sync-document-search event handlers', () => {
         fileEncryptionKeyWrapped: null,
         folderId: null,
         versionNumber: 1,
+        sourceEmail: null,
       };
 
       eventServices.emitEvent({
@@ -114,6 +115,7 @@ describe('sync-document-search event handlers', () => {
         fileEncryptionKeyWrapped: null,
         folderId: null,
         versionNumber: 1,
+        sourceEmail: null,
       };
 
       const changes = {
@@ -251,6 +253,7 @@ describe('sync-document-search event handlers', () => {
         fileEncryptionKeyWrapped: null,
         folderId: null,
         versionNumber: 1,
+        sourceEmail: null,
       };
 
       // Emit multiple events in sequence

@@ -16,6 +16,7 @@ export const TAGGING_RULE_OPERATORS = {
 export const TAGGING_RULE_FIELDS = {
   DOCUMENT_NAME: 'name',
   DOCUMENT_CONTENT: 'content',
+  SOURCE_EMAIL: 'sourceEmail',
 } as const satisfies Record<string, keyof DbSelectableDocument>;
 
 export const CONDITION_MATCH_MODES = {

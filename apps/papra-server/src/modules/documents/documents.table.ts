@@ -26,6 +26,8 @@ export const documentsTable = sqliteTable('documents', {
   fileEncryptionKekVersion: text('file_encryption_kek_version'), // The key encryption key version used to encrypt the file encryption key
   fileEncryptionAlgorithm: text('file_encryption_algorithm'),
 
+  sourceEmail: text('source_email').$type<string | null>().default(null),
+
   deletedAt: integer('deleted_at', { mode: 'timestamp_ms' }),
   deletedBy: text('deleted_by').references(() => usersTable.id, { onDelete: 'set null', onUpdate: 'cascade' }),
   folderId: text('folder_id').references(() => documentFoldersTable.id, { onDelete: 'set null', onUpdate: 'cascade' }),

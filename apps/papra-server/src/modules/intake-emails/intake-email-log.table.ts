@@ -16,4 +16,5 @@ export const intakeEmailLogTable = sqliteTable('intake_email_log', {
   rawEmailKey: text('raw_email_key'), // S3 key for raw email
 }, table => [
   index('intake_email_log_org_created_index').on(table.organizationId, table.createdAt),
+  index('intake_email_log_dedup_index').on(table.fromAddress, table.subject, table.status, table.createdAt),
 ]);

@@ -1,0 +1,31 @@
+{
+  "name": "@papra/mcp-server",
+  "type": "module",
+  "version": "0.1.0",
+  "description": "MCP server for Papra document management platform",
+  "license": "AGPL-3.0-or-later",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "bin": {
+    "papra-mcp-server": "./bin/papra-mcp-server.mjs"
+  },
+  "files": ["bin", "dist"],
+  "scripts": {
+    "dev": "tsx ./src/index.ts",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@papra/api-sdk": "workspace:*",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}

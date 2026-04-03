@@ -82,6 +82,7 @@ describe('documents models', () => {
           documentDate: new Date('2025-12-24'),
           folderId: null,
           versionNumber: 1,
+          sourceEmail: null,
         },
       })).to.eql({
         content: 'Hello, world!',
@@ -99,6 +100,7 @@ describe('documents models', () => {
         originalSize: 100,
         updatedAt: new Date('2025-01-01'),
         documentDate: new Date('2025-12-24'),
+        sourceEmail: null,
       });
     });
   });
