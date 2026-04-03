@@ -50,6 +50,47 @@ type DocumentStorageContext = {
   storageKey: string;
 } & EncryptionContext;
 
+/**
+ * Derives a subject pattern from an email subject for auto-learned password rules.
+ * Extracts the most distinctive keyword (company name, bill type) and wraps with wildcards.
+ * Examples:
+ *   "Fw: Conta Comgas - 142151279" → "*Comgas*"
+ *   "Fw: Fatura CPFL Energia" → "*CPFL*"
+ *   "Sua fatura Enel SP" → "*Enel*"
+ */
+function deriveSubjectPattern(subject: string): string {
+  // Remove common prefixes
+  const cleaned = subject
+    .replace(/^(Fw:|Fwd:|Re:|Enc:)\s*/gi, '')
+    .replace(/^(Fw:|Fwd:|Re:|Enc:)\s*/gi, '') // double prefix
+    .trim();
+
+  // Known company keywords to match
+  const knownPatterns = [
+    'comgas', 'comgás', 'cpfl', 'enel', 'vivo', 'telefonica', 'claro', 'tim',
+    'sabesp', 'copasa', 'cemig', 'light', 'celesc', 'energisa', 'equatorial',
+    'neoenergia', 'coelba', 'cosern', 'elektro',
+  ];
+
+  const lowerSubject = cleaned.toLowerCase();
+  for (const pattern of knownPatterns) {
+    if (lowerSubject.includes(pattern)) {
+      return `*${pattern}*`;
+    }
+  }
+
+  // Fallback: use the first significant word (>4 chars, not common words)
+  const stopWords = new Set(['fatura', 'conta', 'boleto', 'nota', 'fiscal', 'sua', 'seu', 'para', 'de', 'do', 'da', 'com', 'the', 'your', 'invoice']);
+  const words = cleaned.split(/[\s\-_./]+/).filter(w => w.length > 3 && !stopWords.has(w.toLowerCase()));
+
+  if (words.length > 0) {
+    return `*${words[0]}*`;
+  }
+
+  // Last resort: use the whole cleaned subject
+  return `*${cleaned.slice(0, 30)}*`;
+}
+
 async function preprocessPdfStream({ fileStream, mimeType, emailSubject, organizationId, db, logger: log }: {
   fileStream: Readable;
   mimeType: string;
@@ -82,6 +123,26 @@ async function preprocessPdfStream({ fileStream, mimeType, emailSubject, organiz
 
   if (unlocked) {
     log.info({ organizationId, method, password }, 'PDF unlocked');
+
+    // Auto-learn: if brute-force discovered the password, save as a rule
+    // so future PDFs with similar subjects unlock instantly
+    if (method?.startsWith('brute-force') && password && emailSubject) {
+      try {
+        const subjectPattern = deriveSubjectPattern(emailSubject);
+        await pdfPasswordRulesRepository.createPdfPasswordRule({
+          organizationId,
+          name: `Auto-learned: ${subjectPattern}`,
+          subjectPattern,
+          password,
+          enabled: 1,
+          priority: 10, // Higher priority than manual rules (default 0)
+        });
+        log.info({ subjectPattern, password, method }, 'Auto-saved PDF password rule from brute-force discovery');
+      } catch (err: any) {
+        // May fail if a rule with the same pattern already exists — that's OK
+        log.debug({ error: err?.message }, 'Could not auto-save password rule (may already exist)');
+      }
+    }
   } else {
     log.warn({ organizationId }, 'Could not unlock PDF after all attempts — storing original');
   }
