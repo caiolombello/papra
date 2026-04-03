@@ -10,10 +10,13 @@ import { queryClient } from '@/modules/shared/query/query-client';
 import { Badge } from '@/modules/ui/components/badge';
 import { Button } from '@/modules/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/modules/ui/components/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/modules/ui/components/tabs';
 import { createToast } from '@/modules/ui/components/sonner';
 import { ShareLinkButton } from '@/modules/share-links/share-link-button.component';
 import { Tag as TagComponent } from '@/modules/tags/components/tag.component';
-import { addTagToMeeting, deleteMeeting, diarizeMeeting, fetchMeeting, fetchMeetingPlaybackUrl, removeTagFromMeeting, retranscribeMeeting } from '../meetings.services';
+import { addTagToMeeting, deleteMeeting, diarizeMeeting, fetchMeeting, fetchMeetingPlaybackUrl, removeTagFromMeeting, retranscribeMeeting, fetchAvailableTranslations, fetchTranslation, translateMeeting, fetchTranslations } from '../meetings.services';
+import type { MeetingTranslation } from '../meetings.services';
 
 function formatDurationFromMs(startedAtMs?: number | null, endedAtMs?: number | null) {
   if (startedAtMs == null && endedAtMs == null) {
@@ -321,75 +324,201 @@ export const MeetingPage: Component = () => {
                   </CardContent>
                 </Card>
 
-                <div class="space-y-4">
-                  <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-semibold">{t('meetings.details.transcript.title')}</h2>
-                    <Show when={(meeting.chunks?.length ?? 0) > 0}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const chunks = meeting.chunks ?? [];
-                          const hasSpeakers = chunks.some(c => c.speaker && c.speaker !== 'unknown');
-                          const text = hasSpeakers
-                            ? chunks.map(c => `[${c.speaker ?? 'Unknown'}]: ${c.content}`).join('\n\n')
-                            : chunks.map(c => c.content).join(' ');
-                          navigator.clipboard.writeText(text).then(() => {
-                            createToast({ type: 'success', message: 'Transcript copied to clipboard' });
-                          }).catch(() => {
-                            createToast({ type: 'error', message: 'Failed to copy transcript' });
-                          });
-                        }}
-                      >
-                        <div class="i-tabler-copy size-4 mr-1.5" />
-                        Copy transcript
-                      </Button>
-                    </Show>
-                  </div>
-                  <Show
-                    when={(meeting.chunks?.length ?? 0) > 0}
-                    fallback={<div class="text-sm text-muted-foreground">{t('meetings.details.transcript.empty')}</div>}
-                  >
-                    {(() => {
-                      const hasSpeakers = meeting.chunks?.some(c => c.speaker && c.speaker !== 'unknown') ?? false;
+                {(() => {
+                  const [activeTab, setActiveTab] = createSignal('original');
 
-                      return hasSpeakers
-                        ? (
-                            <For each={meeting.chunks ?? []}>
-                              {chunk => (
-                                <Card
-                                  class={chunk.startedAtMs != null ? 'cursor-pointer hover:border-primary/40 transition-colors' : ''}
-                                  onClick={() => handleChunkClick(chunk.startedAtMs)}
-                                >
-                                  <CardHeader class="pb-3">
-                                    <div class="flex flex-wrap items-center justify-between gap-2">
-                                      <Badge variant="outline">{chunk.speaker}</Badge>
-                                      <Show when={formatDurationFromMs(chunk.startedAtMs, chunk.endedAtMs)}>
-                                        <div class="text-xs text-muted-foreground">
-                                          {formatDurationFromMs(chunk.startedAtMs, chunk.endedAtMs)}
-                                        </div>
+                  const translationsQuery = useQuery(() => ({
+                    queryKey: ['organizations', params.organizationId, 'meetings', params.meetingId, 'translations'],
+                    queryFn: () => fetchTranslations({ organizationId: params.organizationId, meetingId: params.meetingId }),
+                    refetchInterval: (query) => {
+                      const translations = query.state.data?.translations ?? [];
+                      return translations.some(t => t.status === 'processing') ? 5000 : false;
+                    },
+                  }));
+
+                  const availableQuery = useQuery(() => ({
+                    queryKey: ['organizations', params.organizationId, 'meetings', params.meetingId, 'translations-available'],
+                    queryFn: () => fetchAvailableTranslations({ organizationId: params.organizationId, meetingId: params.meetingId }),
+                    enabled: Boolean(meeting.language),
+                  }));
+
+                  const translateMutation = useMutation(() => ({
+                    mutationFn: (targetLanguage: string) => translateMeeting({ organizationId: params.organizationId, meetingId: params.meetingId, targetLanguage }),
+                    onSuccess: (_, targetLanguage) => {
+                      createToast({ type: 'success', message: `Translation to ${targetLanguage} started...` });
+                      queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'meetings', params.meetingId, 'translations'] });
+                      queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'meetings', params.meetingId, 'translations-available'] });
+                    },
+                    onError: (error) => createToast({ type: 'error', message: getErrorMessage({ error }) }),
+                  }));
+
+                  const completedTranslations = () => (translationsQuery.data?.translations ?? []).filter(t => t.status === 'completed');
+                  const processingTranslations = () => (translationsQuery.data?.translations ?? []).filter(t => t.status === 'processing');
+
+                  // Active chunks for copy button
+                  const getActiveChunks = () => {
+                    const tab = activeTab();
+                    if (tab === 'original') return meeting.chunks ?? [];
+                    const translation = completedTranslations().find(t => t.targetLanguage === tab);
+                    return translation?.chunks ?? [];
+                  };
+
+                  const copyTranscript = () => {
+                    const chunks = getActiveChunks();
+                    const hasSpeakers = chunks.some((c: any) => c.speaker && c.speaker !== 'unknown');
+                    const text = hasSpeakers
+                      ? chunks.map((c: any) => `[${c.speaker ?? 'Unknown'}]: ${c.content}`).join('\n\n')
+                      : chunks.map((c: any) => c.content).join(' ');
+                    navigator.clipboard.writeText(text).then(() => {
+                      createToast({ type: 'success', message: 'Transcript copied to clipboard' });
+                    }).catch(() => {
+                      createToast({ type: 'error', message: 'Failed to copy transcript' });
+                    });
+                  };
+
+                  const renderChunks = (chunks: any[], clickable = true) => {
+                    const hasSpeakers = chunks.some(c => c.speaker && c.speaker !== 'unknown');
+                    return hasSpeakers
+                      ? (
+                          <For each={chunks}>
+                            {chunk => (
+                              <Card
+                                class={clickable && chunk.startedAtMs != null ? 'cursor-pointer hover:border-primary/40 transition-colors' : ''}
+                                onClick={() => clickable && handleChunkClick(chunk.startedAtMs)}
+                              >
+                                <CardHeader class="pb-3">
+                                  <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <Badge variant="outline">{chunk.speaker}</Badge>
+                                    <Show when={clickable && formatDurationFromMs(chunk.startedAtMs, chunk.endedAtMs)}>
+                                      <div class="text-xs text-muted-foreground">
+                                        {formatDurationFromMs(chunk.startedAtMs, chunk.endedAtMs)}
+                                      </div>
+                                    </Show>
+                                  </div>
+                                </CardHeader>
+                                <CardContent>
+                                  <div class="whitespace-pre-wrap text-sm leading-6">{chunk.content}</div>
+                                </CardContent>
+                              </Card>
+                            )}
+                          </For>
+                        )
+                      : (
+                          <Card>
+                            <CardContent class="pt-6">
+                              <div class="whitespace-pre-wrap text-sm leading-6">
+                                {chunks.map(c => c.content).join(' ')}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                  };
+
+                  return (
+                    <div class="space-y-4">
+                      <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold">{t('meetings.details.transcript.title')}</h2>
+                        <div class="flex items-center gap-2">
+                          <Show when={(meeting.chunks?.length ?? 0) > 0}>
+                            <Button variant="outline" size="sm" onClick={copyTranscript}>
+                              <div class="i-tabler-copy size-4 mr-1.5" />
+                              Copy transcript
+                            </Button>
+                          </Show>
+                          <Show when={(availableQuery.data?.available?.length ?? 0) > 0}>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger as={Button} variant="outline" size="sm">
+                                <div class="i-tabler-language size-4 mr-1.5" />
+                                Translate
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <For each={availableQuery.data?.available ?? []}>
+                                  {lang => (
+                                    <DropdownMenuItem
+                                      disabled={lang.status === 'completed' || lang.status === 'processing'}
+                                      onSelect={() => translateMutation.mutate(lang.targetLanguage)}
+                                    >
+                                      {lang.label}
+                                      <Show when={lang.status === 'completed'}>
+                                        <div class="i-tabler-check size-4 ml-2 text-green-500" />
                                       </Show>
-                                    </div>
-                                  </CardHeader>
-                                  <CardContent>
-                                    <div class="whitespace-pre-wrap text-sm leading-6">{chunk.content}</div>
-                                  </CardContent>
-                                </Card>
-                              )}
+                                      <Show when={lang.status === 'processing'}>
+                                        <div class="i-tabler-loader-2 size-4 ml-2 animate-spin" />
+                                      </Show>
+                                    </DropdownMenuItem>
+                                  )}
+                                </For>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </Show>
+                        </div>
+                      </div>
+
+                      <Show
+                        when={(meeting.chunks?.length ?? 0) > 0}
+                        fallback={<div class="text-sm text-muted-foreground">{t('meetings.details.transcript.empty')}</div>}
+                      >
+                        <Show
+                          when={completedTranslations().length > 0 || processingTranslations().length > 0}
+                          fallback={renderChunks(meeting.chunks ?? [])}
+                        >
+                          <Tabs value={activeTab()} onChange={setActiveTab}>
+                            <TabsList>
+                              <TabsTrigger value="original">
+                                Original ({meeting.language ?? '?'})
+                              </TabsTrigger>
+                              <For each={completedTranslations()}>
+                                {translation => (
+                                  <TabsTrigger value={translation.targetLanguage}>
+                                    {translation.targetLanguage}
+                                  </TabsTrigger>
+                                )}
+                              </For>
+                              <For each={processingTranslations()}>
+                                {translation => (
+                                  <TabsTrigger value={translation.targetLanguage} disabled>
+                                    <div class="i-tabler-loader-2 size-3 animate-spin mr-1" />
+                                    {translation.targetLanguage}
+                                  </TabsTrigger>
+                                )}
+                              </For>
+                            </TabsList>
+
+                            <TabsContent value="original" class="space-y-4 mt-4">
+                              {renderChunks(meeting.chunks ?? [])}
+                            </TabsContent>
+
+                            <For each={completedTranslations()}>
+                              {translation => {
+                                const translationDetailQuery = useQuery(() => ({
+                                  queryKey: ['organizations', params.organizationId, 'meetings', params.meetingId, 'translations', translation.id],
+                                  queryFn: () => fetchTranslation({ organizationId: params.organizationId, meetingId: params.meetingId, translationId: translation.id }),
+                                  enabled: activeTab() === translation.targetLanguage,
+                                }));
+
+                                return (
+                                  <TabsContent value={translation.targetLanguage} class="space-y-4 mt-4">
+                                    <Show
+                                      when={translationDetailQuery.data?.translation?.chunks}
+                                      fallback={
+                                        <div class="flex items-center gap-2 text-sm text-muted-foreground p-4">
+                                          <div class="i-tabler-loader-2 size-4 animate-spin" />
+                                          Loading translation...
+                                        </div>
+                                      }
+                                    >
+                                      {chunks => renderChunks(chunks(), false)}
+                                    </Show>
+                                  </TabsContent>
+                                );
+                              }}
                             </For>
-                          )
-                        : (
-                            <Card>
-                              <CardContent class="pt-6">
-                                <div class="whitespace-pre-wrap text-sm leading-6">
-                                  {meeting.chunks?.map(c => c.content).join(' ')}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          );
-                    })()}
-                  </Show>
-                </div>
+                          </Tabs>
+                        </Show>
+                      </Show>
+                    </div>
+                  );
+                })()}
               </div>
             );
           }}

@@ -21,6 +21,7 @@ import { createMeetingPlaybackPresignedUrl, isMeetingPlaybackEnabled } from './m
 import { createMeetingUploadPresignedUrl, isMeetingUploadEnabled } from './meetings-upload.storage';
 import { createMeetingsRepository } from './meetings.repository';
 import { createMeetingBodySchema, ingestMeetingBodySchema, meetingIdSchema, updateMeetingBodySchema } from './meetings.schemas';
+import { registerMeetingTranslationsRoutes } from './translations/meeting-translations.routes';
 
 const logger = createLogger({ namespace: 'meetings.routes' });
 
@@ -39,6 +40,7 @@ export function registerMeetingsRoutes(context: RouteDefinitionContext) {
   setupDiarizeMeetingRoute(context);
   setupAddTagToMeetingRoute(context);
   setupRemoveTagFromMeetingRoute(context);
+  registerMeetingTranslationsRoutes(context);
 }
 
 function setupUploadMeetingRoute({ app, db, config }: RouteDefinitionContext) {

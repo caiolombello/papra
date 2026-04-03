@@ -250,3 +250,47 @@ export async function retranscribeMeeting({
     path: `/api/organizations/${organizationId}/meetings/${meetingId}/retranscribe`,
   });
 }
+
+// --- Translation ---
+
+export type MeetingTranslation = {
+  id: string;
+  meetingId: string;
+  sourceLanguage: string;
+  targetLanguage: string;
+  status: string;
+  createdAt: string;
+  chunks?: { chunkIndex: number; speaker: string | null; content: string }[];
+};
+
+export async function fetchAvailableTranslations({ organizationId, meetingId }: { organizationId: string; meetingId: string }) {
+  return apiClient<{
+    sourceLanguage: string;
+    available: { targetLanguage: string; label: string; status: string | null }[];
+  }>({
+    method: 'GET',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}/translations/available`,
+  });
+}
+
+export async function fetchTranslations({ organizationId, meetingId }: { organizationId: string; meetingId: string }) {
+  return apiClient<{ translations: MeetingTranslation[] }>({
+    method: 'GET',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}/translations`,
+  });
+}
+
+export async function fetchTranslation({ organizationId, meetingId, translationId }: { organizationId: string; meetingId: string; translationId: string }) {
+  return apiClient<{ translation: MeetingTranslation }>({
+    method: 'GET',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}/translations/${translationId}`,
+  });
+}
+
+export async function translateMeeting({ organizationId, meetingId, targetLanguage }: { organizationId: string; meetingId: string; targetLanguage: string }) {
+  return apiClient<{ translation: { id: string; status: string; targetLanguage: string } }>({
+    method: 'POST',
+    path: `/api/organizations/${organizationId}/meetings/${meetingId}/translate`,
+    body: { targetLanguage },
+  });
+}
