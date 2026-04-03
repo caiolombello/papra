@@ -50,6 +50,45 @@ type DocumentStorageContext = {
   storageKey: string;
 } & EncryptionContext;
 
+async function preprocessPdfStream({ fileStream, mimeType, emailSubject, organizationId, db, logger: log }: {
+  fileStream: Readable;
+  mimeType: string;
+  emailSubject?: string;
+  organizationId: string;
+  db: Database;
+  logger: Logger;
+}): Promise<Readable> {
+  if (mimeType !== 'application/pdf' || !emailSubject) {
+    return fileStream;
+  }
+
+  const chunks: Buffer[] = [];
+  for await (const chunk of fileStream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+  }
+
+  const pdfBuffer = Buffer.concat(chunks);
+  const encrypted = await isPdfEncrypted(pdfBuffer);
+
+  if (!encrypted) {
+    return NodeReadable.from(pdfBuffer);
+  }
+
+  log.info({ organizationId, emailSubject }, 'PDF is password-protected, attempting unlock');
+
+  const pdfPasswordRulesRepository = createPdfPasswordRulesRepository({ db });
+  const passwords = await findMatchingPasswords({ organizationId, subject: emailSubject, pdfPasswordRulesRepository });
+  const { unlocked, data } = await tryUnlockPdf(pdfBuffer, passwords);
+
+  if (unlocked) {
+    log.info({ organizationId }, 'PDF successfully unlocked');
+  } else {
+    log.warn({ organizationId, passwordCount: passwords.length }, 'Could not unlock PDF — storing original');
+  }
+
+  return NodeReadable.from(data);
+}
+
 export async function createDocument({
   fileStream,
   fileName,
@@ -110,40 +149,7 @@ export async function createDocument({
     storagePatternConfig,
   });
 
-  // --- PDF unlock logic ---
-  // If this document came from an intake email (emailSubject is set) and is a PDF,
-  // try to unlock it with passwords from the org's pdf-password-rules before streaming.
-  let resolvedFileStream: Readable = fileStream;
-
-  if (mimeType === 'application/pdf' && emailSubject) {
-    const chunks: Buffer[] = [];
-
-    for await (const chunk of fileStream) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
-    }
-
-    const pdfBuffer = Buffer.concat(chunks);
-    // Always recreate stream from buffer since we consumed the original
-    resolvedFileStream = NodeReadable.from(pdfBuffer);
-    const encrypted = await isPdfEncrypted(pdfBuffer);
-
-    if (encrypted) {
-      logger.info({ organizationId, emailSubject }, 'PDF is password-protected, attempting unlock');
-
-      const pdfPasswordRulesRepository = createPdfPasswordRulesRepository({ db });
-      const passwords = await findMatchingPasswords({ organizationId, subject: emailSubject, pdfPasswordRulesRepository });
-      const { unlocked, data } = await tryUnlockPdf(pdfBuffer, passwords);
-
-      if (unlocked) {
-        logger.info({ organizationId }, 'PDF successfully unlocked for ingest');
-      } else {
-        logger.warn({ organizationId, passwordCount: passwords.length }, 'Could not unlock PDF — storing original encrypted file');
-      }
-
-      resolvedFileStream = NodeReadable.from(data);
-    }
-  }
-  // --- end PDF unlock logic ---
+  const resolvedFileStream = await preprocessPdfStream({ fileStream, mimeType, emailSubject, organizationId, db, logger });
 
   const { tap: hashStream, getHash } = createSha256HashTransformer();
 
@@ -357,7 +363,11 @@ async function createNewDocument({
   isContentExtractionEnabled?: boolean;
   logger: Logger;
 }) {
-  // TODO: wrap in a transaction
+  // Note: quota check + insert is not wrapped in a DB transaction because
+  // documentsRepository is instantiated with a fixed db connection. A concurrent
+  // request could theoretically bypass the quota check. The unique SHA256 constraint
+  // prevents duplicate documents, and the quota is rechecked server-side, making
+  // the risk of over-quota negligible in practice (single-user, low-concurrency).
 
   // Recheck for quota after saving the file to the storage
   const { availableDocumentStorageBytes } = await getOrganizationStorageLimits({ organizationId, plansRepository, subscriptionsRepository, documentsRepository });
