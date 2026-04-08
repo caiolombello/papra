@@ -32,6 +32,7 @@ import { taggingRulesFolderActionMigration } from './list/0029-tagging-rules-fol
 import { intakeEmailLogMigration } from './list/0030-intake-email-log.migration';
 import { documentSourceEmailMigration } from './list/0031-document-source-email.migration';
 import { meetingTranslationsMigration } from './list/0032-meeting-translations.migration';
+import { financeMigration } from './list/0033-finance.migration';
 
 export const migrations: Migration[] = [
   initialSchemaSetupMigration,
@@ -66,4 +67,5 @@ export const migrations: Migration[] = [
   intakeEmailLogMigration,
   documentSourceEmailMigration,
   meetingTranslationsMigration,
+  financeMigration,
 ];
