@@ -18,7 +18,7 @@ export function createPluggySyncService({ config, db, financeRepository }: {
   });
 
   return {
-    syncItem: (args: { itemId: string; organizationId: string }) =>
+    syncItem: (args: { itemId: string; pluggyItemId: string; organizationId: string }) =>
       syncItem({ ...args, pluggyClient, financeRepository }),
     syncAllItems: (args: { organizationId: string }) =>
       syncAllItems({ ...args, pluggyClient, financeRepository }),
@@ -27,22 +27,24 @@ export function createPluggySyncService({ config, db, financeRepository }: {
 
 async function syncItem({
   itemId,
+  pluggyItemId,
   organizationId,
   pluggyClient,
   financeRepository,
 }: {
   itemId: string;
+  pluggyItemId: string;
   organizationId: string;
   pluggyClient: PluggyClient;
   financeRepository: FinanceRepository;
 }) {
-  logger.info({ itemId, organizationId }, 'Starting sync for item');
+  logger.info({ itemId, pluggyItemId, organizationId }, 'Starting sync for item');
 
   let totalTransactionsCount = 0;
 
   try {
-    // 1. Fetch accounts from Pluggy
-    const accountsResponse = await pluggyClient.fetchAccounts(itemId);
+    // 1. Fetch accounts from Pluggy (using Pluggy UUID, not internal ID)
+    const accountsResponse = await pluggyClient.fetchAccounts(pluggyItemId);
     const pluggyAccounts = accountsResponse.results;
 
     // 2. Upsert each account and sync its transactions/bills
@@ -128,7 +130,7 @@ async function syncItem({
 
     // 6. Fetch investments
     try {
-      const investmentsResponse = await pluggyClient.fetchInvestments(itemId);
+      const investmentsResponse = await pluggyClient.fetchInvestments(pluggyItemId);
       for (const investment of investmentsResponse.results) {
         await financeRepository.upsertInvestment({
           itemId,
@@ -227,6 +229,7 @@ async function syncAllItems({
     try {
       await syncItem({
         itemId: item.id,
+        pluggyItemId: item.pluggyItemId,
         organizationId,
         pluggyClient,
         financeRepository,

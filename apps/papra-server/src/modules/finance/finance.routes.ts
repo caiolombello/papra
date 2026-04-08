@@ -421,7 +421,11 @@ export function registerFinanceRoutes(context: RouteDefinitionContext) {
       const syncService = createPluggySyncService({ config, db, financeRepository });
 
       if (itemId) {
-        await syncService.syncItem({ itemId, organizationId });
+        const { item } = await financeRepository.getItemByPluggyId({ organizationId, pluggyItemId: itemId });
+        if (!item) {
+          return c.json({ error: 'Item not found' }, 404);
+        }
+        await syncService.syncItem({ itemId: item.id, pluggyItemId: item.pluggyItemId, organizationId });
       } else {
         await syncService.syncAllItems({ organizationId });
       }
