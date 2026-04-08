@@ -98,21 +98,24 @@ export type FinanceItem = {
 };
 
 export type FinanceDashboard = {
-  financialMonth: string;
+  month: string;
   from: string;
   to: string;
-  totalBankBalance: number;
-  totalOpenBills: number;
-  investmentsSummary: {
-    totalBalance: number;
-    totalProfit: number;
-    avgMonthlyRate: number;
-    count: number;
-  };
-  spending: Array<{ categoryId: string | null; total: number; count: number }>;
-  budgets: FinanceBudget[];
   accounts: FinanceAccount[];
   openBills: FinanceBill[];
+  investmentsSummary: {
+    totalBalance: number | null;
+    totalProfit: number | null;
+    avgLastMonthRate: number | null;
+    count: number;
+  };
+  spendingByCategory: Array<{ categoryId: string | null; totalAmount: number; transactionCount: number }>;
+  budgets: FinanceBudget[];
   activeInstallments: FinanceTransaction[];
-  creditCards: FinanceAccount[];
+  summary: {
+    totalBalance: number;
+    totalOpenBills: number;
+    totalSpending: number;
+    investmentsBalance: number;
+  };
 };

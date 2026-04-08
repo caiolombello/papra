@@ -71,11 +71,13 @@ export const FinanceDashboardPage: Component = () => {
 
   const spendingByCategoryId = () => {
     const map: Record<string, number> = {};
-    for (const s of data()?.spending ?? []) {
-      map[s.categoryId ?? 'uncategorized'] = s.total;
+    for (const s of data()?.spendingByCategory ?? []) {
+      map[s.categoryId ?? 'uncategorized'] = s.totalAmount;
     }
     return map;
   };
+
+  const creditCards = () => data()?.accounts.filter(a => a.type === 'CREDIT') ?? [];
 
   return (
     <div class="p-6 mt-4 pb-32 max-w-5xl mx-auto">
@@ -130,7 +132,7 @@ export const FinanceDashboardPage: Component = () => {
             </CardHeader>
             <CardContent>
               <p class="text-2xl font-bold text-green-600">
-                {formatCurrency(data()?.totalBankBalance ?? 0)}
+                {formatCurrency(data()?.summary.totalBalance ?? 0)}
               </p>
               <p class="text-xs text-muted-foreground mt-1">
                 {data()?.accounts.filter(a => a.type === 'BANK').length ?? 0} accounts
@@ -148,7 +150,7 @@ export const FinanceDashboardPage: Component = () => {
             </CardHeader>
             <CardContent>
               <p class="text-2xl font-bold text-red-600">
-                {formatCurrency(data()?.totalOpenBills ?? 0)}
+                {formatCurrency(data()?.summary.totalOpenBills ?? 0)}
               </p>
               <p class="text-xs text-muted-foreground mt-1">
                 {data()?.openBills.length ?? 0} credit card{(data()?.openBills.length ?? 0) !== 1 ? 's' : ''}
@@ -258,7 +260,7 @@ export const FinanceDashboardPage: Component = () => {
         </div>
 
         {/* Credit Card Timeline */}
-        <Show when={(data()?.creditCards.length ?? 0) > 0}>
+        <Show when={(creditCards().length ?? 0) > 0}>
           <Card>
             <CardHeader>
               <div class="flex items-center gap-2">
@@ -268,7 +270,7 @@ export const FinanceDashboardPage: Component = () => {
             </CardHeader>
             <CardContent>
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <For each={data()?.creditCards ?? []}>
+                <For each={creditCards() ?? []}>
                   {(card) => {
                     const bill = () => data()?.openBills.find(b => b.accountId === card.id);
                     return (
