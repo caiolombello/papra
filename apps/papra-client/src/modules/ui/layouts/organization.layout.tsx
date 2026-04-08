@@ -88,6 +88,11 @@ const OrganizationLayoutSideNav: Component = () => {
       icon: 'i-tabler-microphone-2',
       href: `/organizations/${params.organizationId}/meetings`,
     },
+    {
+      label: 'Finanças',
+      icon: 'i-tabler-chart-bar',
+      href: `/organizations/${params.organizationId}/finance`,
+    },
 
     {
       label: t('layout.menu.tags'),

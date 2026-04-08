@@ -46,6 +46,12 @@ import { UpdateTaggingRulePage } from './modules/tagging-rules/pages/update-tagg
 import { TagsPage } from './modules/tags/pages/tags.page';
 import { PdfPasswordRulesPage } from './modules/pdf-password-rules/pages/pdf-password-rules.page';
 import { IntakeEmailLogPage } from './modules/intake-emails/pages/intake-email-log.page';
+import { FinanceDashboardPage } from './modules/finance/pages/finance-dashboard.page';
+import { FinanceTransactionsPage } from './modules/finance/pages/finance-transactions.page';
+import { FinanceInvestmentsPage } from './modules/finance/pages/finance-investments.page';
+import { FinanceBudgetPage } from './modules/finance/pages/finance-budget.page';
+import { FinanceInstallmentsPage } from './modules/finance/pages/finance-installments.page';
+import { FinanceSettingsPage } from './modules/finance/pages/finance-settings.page';
 import { AuditLogPage } from './modules/security-audit/pages/audit-log.page';
 import { ShareLinksManagementPage } from './modules/share-links/pages/share-links-management.page';
 import { SharedResourcePage } from './modules/share-links/pages/shared-resource.page';
@@ -152,6 +158,30 @@ export const routes: RouteDefinition[] = [
                   {
                     path: '/meetings/:meetingId',
                     component: MeetingPage,
+                  },
+                  {
+                    path: '/finance',
+                    component: FinanceDashboardPage,
+                  },
+                  {
+                    path: '/finance/transactions',
+                    component: FinanceTransactionsPage,
+                  },
+                  {
+                    path: '/finance/investments',
+                    component: FinanceInvestmentsPage,
+                  },
+                  {
+                    path: '/finance/budget',
+                    component: FinanceBudgetPage,
+                  },
+                  {
+                    path: '/finance/installments',
+                    component: FinanceInstallmentsPage,
+                  },
+                  {
+                    path: '/finance/settings',
+                    component: FinanceSettingsPage,
                   },
                   {
                     path: '/deleted',
