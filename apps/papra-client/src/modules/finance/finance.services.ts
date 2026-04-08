@@ -244,3 +244,13 @@ export async function fetchFinanceAccounts({
     path: `/api/organizations/${organizationId}/finance/accounts`,
   });
 }
+
+export async function createConnectToken({ organizationId, itemId }: {
+  organizationId: string; itemId?: string;
+}) {
+  return apiClient<{ accessToken: string }>({
+    method: 'POST',
+    path: `/api/organizations/${organizationId}/finance/connect-token`,
+    body: { itemId },
+  });
+}

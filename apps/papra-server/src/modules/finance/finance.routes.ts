@@ -434,6 +434,32 @@ export function registerFinanceRoutes(context: RouteDefinitionContext) {
     },
   );
 
+  // ─── Connect Token ────────────────────────────────────────────────────────────
+
+  app.post(
+    '/api/organizations/:organizationId/finance/connect-token',
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.DOCUMENTS.CREATE] }),
+    validateParams(z.object({ organizationId: z.string() })),
+    validateJsonBody(z.object({ itemId: z.string().uuid().optional() })),
+    async (c) => {
+      const { userId } = getUser({ context: c });
+      const { organizationId } = c.req.valid('param');
+      const { itemId } = c.req.valid('json');
+
+      const organizationsRepository = createOrganizationsRepository({ db });
+      await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
+
+      const { getPluggyClient } = await import('./sync/pluggy-auth');
+      const pluggyClient = getPluggyClient({
+        clientId: config.finance.pluggy.clientId,
+        clientSecret: config.finance.pluggy.clientSecret,
+      });
+
+      const connectToken = await pluggyClient.createConnectToken(itemId);
+      return c.json({ accessToken: connectToken.accessToken });
+    },
+  );
+
   // ─── Installments ─────────────────────────────────────────────────────────────
 
   app.get(

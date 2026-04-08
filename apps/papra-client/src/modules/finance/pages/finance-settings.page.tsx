@@ -2,13 +2,14 @@ import type { Component } from 'solid-js';
 import type { FinanceCategory, FinanceCategoryRule, FinanceItem } from '../finance.types';
 import { useParams } from '@solidjs/router';
 import { useMutation, useQuery } from '@tanstack/solid-query';
-import { createSignal, For, Show, Suspense } from 'solid-js';
+import { createSignal, For, onCleanup, onMount, Show, Suspense } from 'solid-js';
 import { queryClient } from '@/modules/shared/query/query-client';
 import { Button } from '@/modules/ui/components/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/modules/ui/components/card';
 import { createToast } from '@/modules/ui/components/sonner';
 import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
 import {
+  createConnectToken,
   createFinanceCategoryRule,
   createFinanceItem,
   deleteFinanceCategoryRule,
@@ -46,9 +47,10 @@ function statusColor(status: string) {
 export const FinanceSettingsPage: Component = () => {
   const params = useParams();
 
-  // Items (connections) state
-  const [newPluggyItemId, setNewPluggyItemId] = createSignal('');
-  const [newConnectorName, setNewConnectorName] = createSignal('');
+  // Widget state
+  const [showWidget, setShowWidget] = createSignal(false);
+  const [connectToken, setConnectToken] = createSignal('');
+  const [connectingBank, setConnectingBank] = createSignal(false);
 
   // Category rule state
   const [rulePattern, setRulePattern] = createSignal('');
@@ -74,23 +76,6 @@ export const FinanceSettingsPage: Component = () => {
     },
     onError: () => {
       createToast({ type: 'error', message: 'Failed to trigger sync' });
-    },
-  }));
-
-  const createItemMutation = useMutation(() => ({
-    mutationFn: () => createFinanceItem({
-      organizationId: params.organizationId,
-      pluggyItemId: newPluggyItemId(),
-      connectorName: newConnectorName(),
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'finance', 'items'] });
-      createToast({ type: 'success', message: 'Connection added' });
-      setNewPluggyItemId('');
-      setNewConnectorName('');
-    },
-    onError: () => {
-      createToast({ type: 'error', message: 'Failed to add connection' });
     },
   }));
 
@@ -132,12 +117,17 @@ export const FinanceSettingsPage: Component = () => {
   const getCategoryName = (categoryId: string) =>
     categories().find((c: FinanceCategory) => c.id === categoryId)?.name ?? categoryId;
 
-  const handleAddItem = () => {
-    if (!newPluggyItemId().trim() || !newConnectorName().trim()) {
-      createToast({ type: 'error', message: 'Fill in all connection fields' });
-      return;
+  const handleConnectBank = async () => {
+    try {
+      setConnectingBank(true);
+      const result = await createConnectToken({ organizationId: params.organizationId });
+      setConnectToken(result.accessToken);
+      setShowWidget(true);
+    } catch {
+      createToast({ type: 'error', message: 'Failed to create connect token' });
+    } finally {
+      setConnectingBank(false);
     }
-    createItemMutation.mutate();
   };
 
   const handleAddRule = () => {
@@ -148,19 +138,84 @@ export const FinanceSettingsPage: Component = () => {
     createRuleMutation.mutate();
   };
 
+  onMount(() => {
+    const handler = async (event: MessageEvent) => {
+      if (event.origin !== 'https://connect.pluggy.ai') return;
+
+      const data = event.data;
+      if (!data || typeof data !== 'object') return;
+
+      // Handle both possible message formats from the widget
+      const itemData = data.item || data.data?.item;
+      if (itemData?.id) {
+        try {
+          await createFinanceItem({
+            organizationId: params.organizationId,
+            pluggyItemId: itemData.id,
+            connectorName: itemData.connector?.name || 'Banco',
+          });
+
+          await triggerFinanceSync({ organizationId: params.organizationId });
+
+          queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'finance'] });
+          queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'finance', 'items'] });
+          createToast({ type: 'success', message: 'Banco conectado com sucesso!' });
+          setShowWidget(false);
+        } catch {
+          createToast({ type: 'error', message: 'Erro ao registrar conexão' });
+        }
+      }
+
+      // Handle close event
+      if (data.event === 'close' || data.action === 'closed') {
+        setShowWidget(false);
+      }
+    };
+
+    window.addEventListener('message', handler);
+    onCleanup(() => window.removeEventListener('message', handler));
+  });
+
   return (
     <div class="p-6 mt-4 pb-32 max-w-3xl mx-auto space-y-8">
       <Suspense>
         <h2 class="text-lg font-semibold">Finance Settings</h2>
 
-        {/* Connected Items */}
+        {/* Connected Banks */}
         <section class="space-y-4">
-          <h3 class="text-base font-medium">Connected Accounts</h3>
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-medium">Connected Accounts</h3>
+            <div class="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => syncMutation.mutate(undefined)}
+                disabled={syncMutation.isPending}
+              >
+                <div classList={{
+                  'i-tabler-refresh size-4 mr-2': true,
+                  'animate-spin': syncMutation.isPending,
+                }} />
+                Sync All
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleConnectBank}
+                disabled={connectingBank()}
+              >
+                <div classList={{
+                  'i-tabler-plus size-4 mr-2': !connectingBank(),
+                  'i-tabler-loader-2 animate-spin size-4 mr-2': connectingBank(),
+                }} />
+                Connect New Bank
+              </Button>
+            </div>
+          </div>
 
           <Show
             when={items().length > 0}
             fallback={
-              <p class="text-sm text-muted-foreground">No connections yet.</p>
+              <p class="text-sm text-muted-foreground">No connections yet. Click "Connect New Bank" to get started.</p>
             }
           >
             <div class="space-y-3">
@@ -198,42 +253,6 @@ export const FinanceSettingsPage: Component = () => {
               </For>
             </div>
           </Show>
-
-          {/* Add Connection Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle class="text-sm">Add Connection</CardTitle>
-            </CardHeader>
-            <CardContent class="space-y-3">
-              <div class="space-y-1">
-                <label class="text-sm font-medium">Pluggy Item ID</label>
-                <TextFieldRoot>
-                  <TextField
-                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                    value={newPluggyItemId()}
-                    onInput={e => setNewPluggyItemId(e.currentTarget.value)}
-                  />
-                </TextFieldRoot>
-              </div>
-              <div class="space-y-1">
-                <label class="text-sm font-medium">Connector name</label>
-                <TextFieldRoot>
-                  <TextField
-                    placeholder="e.g. Nubank, Itaú"
-                    value={newConnectorName()}
-                    onInput={e => setNewConnectorName(e.currentTarget.value)}
-                  />
-                </TextFieldRoot>
-              </div>
-              <Button onClick={handleAddItem} disabled={createItemMutation.isPending}>
-                <div classList={{
-                  'i-tabler-plus size-4 mr-2': !createItemMutation.isPending,
-                  'i-tabler-loader-2 animate-spin size-4 mr-2': createItemMutation.isPending,
-                }} />
-                Add Connection
-              </Button>
-            </CardContent>
-          </Card>
         </section>
 
         {/* Category Rules */}
@@ -355,6 +374,33 @@ export const FinanceSettingsPage: Component = () => {
           </Card>
         </section>
       </Suspense>
+
+      {/* Pluggy Connect Widget Overlay */}
+      <Show when={showWidget()}>
+        <div
+          class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => setShowWidget(false)}
+        >
+          <div
+            class="relative w-full max-w-lg h-[600px] bg-background rounded-lg overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              class="absolute right-2 top-2 z-10"
+              onClick={() => setShowWidget(false)}
+            >
+              <div class="i-tabler-x size-5" />
+            </Button>
+            <iframe
+              src={`https://connect.pluggy.ai?connect_token=${connectToken()}`}
+              class="w-full h-full border-0"
+              allow="clipboard-write"
+            />
+          </div>
+        </div>
+      </Show>
     </div>
   );
 };
