@@ -402,6 +402,24 @@ export function registerFinanceRoutes(context: RouteDefinitionContext) {
     },
   );
 
+  app.delete(
+    '/api/organizations/:organizationId/finance/items/:itemId',
+    requireAuthentication({ apiKeyPermissions: [API_KEY_PERMISSIONS.DOCUMENTS.DELETE] }),
+    validateParams(z.object({ organizationId: z.string(), itemId: z.string() })),
+    async (c) => {
+      const { userId } = getUser({ context: c });
+      const { organizationId, itemId } = c.req.valid('param');
+
+      const organizationsRepository = createOrganizationsRepository({ db });
+      await ensureUserIsInOrganization({ userId, organizationId, organizationsRepository });
+
+      const financeRepository = createFinanceRepository({ db });
+      await financeRepository.deleteItem({ id: itemId });
+
+      return c.body(null, 204);
+    },
+  );
+
   // ─── Sync ─────────────────────────────────────────────────────────────────────
 
   app.post(

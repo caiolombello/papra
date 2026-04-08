@@ -52,6 +52,8 @@ export function createFinanceRepository({ db }: { db: Database }) {
     upsertBudget,
     getBudgets,
     deleteBudget,
+    // Items (delete)
+    deleteItem,
     // Sync Log
     createSyncLog,
     getLastSync,
@@ -137,6 +139,10 @@ async function updateItemSyncStatus({
       updatedAt: new Date(),
     })
     .where(eq(financeItemsTable.id, id));
+}
+
+async function deleteItem({ id, db }: { id: string; db: Database }) {
+  await db.delete(financeItemsTable).where(eq(financeItemsTable.id, id));
 }
 
 // ─── Accounts ─────────────────────────────────────────────────────────────────
