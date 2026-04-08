@@ -93,6 +93,31 @@ const OrganizationLayoutSideNav: Component = () => {
       icon: 'i-tabler-chart-bar',
       href: `/organizations/${params.organizationId}/finance`,
     },
+    {
+      label: 'Transações',
+      icon: 'i-tabler-list-details',
+      href: `/organizations/${params.organizationId}/finance/transactions`,
+    },
+    {
+      label: 'Investimentos',
+      icon: 'i-tabler-trending-up',
+      href: `/organizations/${params.organizationId}/finance/investments`,
+    },
+    {
+      label: 'Orçamento',
+      icon: 'i-tabler-calculator',
+      href: `/organizations/${params.organizationId}/finance/budget`,
+    },
+    {
+      label: 'Parcelas',
+      icon: 'i-tabler-calendar-repeat',
+      href: `/organizations/${params.organizationId}/finance/installments`,
+    },
+    {
+      label: 'Conexões',
+      icon: 'i-tabler-plug-connected',
+      href: `/organizations/${params.organizationId}/finance/settings`,
+    },
 
     {
       label: t('layout.menu.tags'),
