@@ -23,7 +23,6 @@ import { IN_MS } from '../shared/units';
 import { subscriptionsConfig } from '../subscriptions/subscriptions.config';
 import { tagsConfig } from '../tags/tags.config';
 import { tasksConfig } from '../tasks/tasks.config';
-import { financeConfig } from '../finance/finance.config';
 import { trackingConfig } from '../tracking/tracking.config';
 import { exitProcessDueToConfigError, validateParsedConfig } from './config.models';
 import { appSchemeSchema, booleanishSchema, coercedUrlListSchema, urlSchema } from './config.schemas';
@@ -160,7 +159,6 @@ export const configDefinition = {
   tags: tagsConfig,
   customProperties: customPropertiesConfig,
   tracking: trackingConfig,
-  finance: financeConfig,
 } as const satisfies AppConfigDefinition;
 
 const logger = createLogger({ namespace: 'config' });

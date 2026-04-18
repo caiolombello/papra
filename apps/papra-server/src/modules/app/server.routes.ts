@@ -1,6 +1,5 @@
 import type { RouteDefinitionContext } from './server.types';
 import { registerAdminRoutes } from '../admin/admin.routes';
-import { registerFinanceRoutes } from '../finance/finance.routes';
 import { registerApiKeysRoutes } from '../api-keys/api-keys.routes';
 import { registerConfigRoutes } from '../config/config.routes';
 import { registerCustomPropertiesRoutes } from '../custom-properties/custom-properties.routes';
@@ -48,5 +47,4 @@ export function registerRoutes(context: RouteDefinitionContext) {
   registerSecurityAuditRoutes(context);
   registerShareLinksRoutes(context);
   registerAdminRoutes(context);
-  registerFinanceRoutes(context);
 }

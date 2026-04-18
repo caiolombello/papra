@@ -80,7 +80,6 @@
     "p-limit": "^6.2.0",
     "p-queue": "^8.1.0",
     "picomatch": "^4.0.2",
-    "pluggy-sdk": "^0.85.1",
     "posthog-node": "^5.20.0",
     "resend": "^4.6.0",
     "sanitize-html": "^2.17.0",
