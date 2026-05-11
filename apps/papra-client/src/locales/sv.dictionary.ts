@@ -333,6 +333,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'documents.list.search.total-count-with-query': '{{ count }} {{ count, =1:dokument, dokument }} matchar denna sökning',
   'documents.list.search.total-count-no-query': '{{ count }} {{ count, =1:dokument, dokument }} totalt',
 
+  'folders.delete.confirm.title': 'Radera mapp',
+  'folders.delete.confirm.message': 'Är du säker på att du vill ta bort den här mappen? Dokumenten i den kommer inte att raderas.',
+  'folders.delete.confirm.cancel-button': 'Avbryt',
+  'folders.delete.confirm.confirm-button': 'Radera',
+  'folders.delete.success': 'Mapp "{{ name }}" raderad',
+
   'documents.tabs.info': 'Info',
   'documents.tabs.content': 'Innehåll',
   'documents.tabs.activity': 'Aktivitet',

@@ -333,6 +333,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'documents.list.search.total-count-with-query': '{{ count }} {{ count, =1:documento, documentos }} coinciden con esta búsqueda',
   'documents.list.search.total-count-no-query': '{{ count }} {{ count, =1:documento, documentos }} en total',
 
+  'folders.delete.confirm.title': 'Eliminar carpeta',
+  'folders.delete.confirm.message': '¿Está seguro de que desea eliminar esta carpeta? Los documentos dentro de ella no serán eliminados.',
+  'folders.delete.confirm.cancel-button': 'Cancelar',
+  'folders.delete.confirm.confirm-button': 'Eliminar',
+  'folders.delete.success': 'Carpeta "{{ name }}" eliminada',
+
   'documents.tabs.info': 'Información',
   'documents.tabs.content': 'Contenido',
   'documents.tabs.activity': 'Actividad',

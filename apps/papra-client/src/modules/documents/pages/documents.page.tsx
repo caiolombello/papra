@@ -3,19 +3,20 @@ import { A, useParams, useSearchParams } from '@solidjs/router';
 import { createMutation, keepPreviousData, useQuery } from '@tanstack/solid-query';
 import { createSignal, For, Show, Suspense } from 'solid-js';
 import { createFolder, deleteFolder, fetchFolder, fetchFolders } from '@/modules/document-folders/document-folders.services';
-import { useI18n } from '@/modules/i18n/i18n.provider';
 import { RelativeTime } from '@/modules/i18n/components/RelativeTime';
+import { useI18n } from '@/modules/i18n/i18n.provider';
+import { searchOrganizationContent } from '@/modules/search/search.services';
+import { useConfirmModal } from '@/modules/shared/confirm';
 import { createParamSynchronizedPagination } from '@/modules/shared/pagination/query-synchronized-pagination';
-import { createParamSynchronizedSignal } from '@/modules/shared/signals/params';
 import { queryClient } from '@/modules/shared/query/query-client';
+import { createParamSynchronizedSignal } from '@/modules/shared/signals/params';
 import { cn } from '@/modules/shared/style/cn';
 import { useDebounce } from '@/modules/shared/utils/timing';
 import { Badge } from '@/modules/ui/components/badge';
 import { Button } from '@/modules/ui/components/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/modules/ui/components/card';
-import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
 import { createToast } from '@/modules/ui/components/sonner';
-import { searchOrganizationContent } from '@/modules/search/search.services';
+import { TextField, TextFieldRoot } from '@/modules/ui/components/textfield';
 import { DocumentUploadArea } from '../components/document-upload-area.component';
 import { createdAtColumn, DocumentsPaginatedList, standardActionsColumn, tagsColumn } from '../components/documents-list.component';
 import { fetchOrganizationDocuments, moveDocumentToFolder } from '../documents.services';
@@ -24,6 +25,7 @@ export const DocumentsPage: Component = () => {
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useI18n();
+  const { confirm } = useConfirmModal();
   const [getSearchQuery, setSearchQuery] = createParamSynchronizedSignal<string>({ paramKey: 'query', defaultValue: '' });
   const debouncedSearchQuery = useDebounce(getSearchQuery, 300);
   const [getPagination, setPagination] = createParamSynchronizedPagination();
@@ -178,7 +180,14 @@ export const DocumentsPage: Component = () => {
                     <Button size="sm" onClick={() => createFolderMutation.mutate()} disabled={!newFolderName().trim() || createFolderMutation.isPending}>
                       Create
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setShowNewFolder(false); setNewFolderName(''); }}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setShowNewFolder(false);
+                        setNewFolderName('');
+                      }}
+                    >
                       Cancel
                     </Button>
                   </div>
@@ -188,7 +197,7 @@ export const DocumentsPage: Component = () => {
                 <Show when={!debouncedSearchQuery() && (foldersQuery.data?.folders?.length ?? 0) > 0}>
                   <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mt-3 mb-4">
                     <For each={foldersQuery.data?.folders ?? []}>
-                      {folder => {
+                      {(folder) => {
                         const [isDragOver, setIsDragOver] = createSignal(false);
                         return (
                           <button
@@ -199,7 +208,9 @@ export const DocumentsPage: Component = () => {
                             onClick={() => navigateToFolder(folder.id)}
                             onDragOver={(e) => {
                               e.preventDefault();
-                              if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+                              if (e.dataTransfer) {
+                                e.dataTransfer.dropEffect = 'move';
+                              }
                               setIsDragOver(true);
                             }}
                             onDragLeave={() => setIsDragOver(false)}
@@ -220,10 +231,27 @@ export const DocumentsPage: Component = () => {
                               class="i-tabler-x size-3.5 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
                               onClick={async (e) => {
                                 e.stopPropagation();
+                                const confirmed = await confirm({
+                                  title: t('folders.delete.confirm.title'),
+                                  message: t('folders.delete.confirm.message'),
+                                  cancelButton: {
+                                    text: t('folders.delete.confirm.cancel-button'),
+                                    variant: 'secondary',
+                                  },
+                                  confirmButton: {
+                                    text: t('folders.delete.confirm.confirm-button'),
+                                    variant: 'destructive',
+                                  },
+                                });
+
+                                if (!confirmed) {
+                                  return;
+                                }
+
                                 await deleteFolder({ organizationId: params.organizationId, folderId: folder.id });
                                 await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'folders'] });
                                 await queryClient.invalidateQueries({ queryKey: ['organizations', params.organizationId, 'documents'] });
-                                createToast({ type: 'success', message: `Folder "${folder.name}" deleted` });
+                                createToast({ type: 'success', message: t('folders.delete.success', { name: folder.name }) });
                               }}
                             />
                           </button>

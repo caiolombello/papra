@@ -333,6 +333,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'documents.list.search.total-count-with-query': '{{ count }} {{ count, =1:Dokument, Dokumente }} entsprechen dieser Suche',
   'documents.list.search.total-count-no-query': '{{ count }} {{ count, =1:Dokument, Dokumente }} insgesamt',
 
+  'folders.delete.confirm.title': 'Ordner löschen',
+  'folders.delete.confirm.message': 'Sind Sie sicher, dass Sie diesen Ordner löschen möchten? Die darin enthaltenen Dokumente werden nicht gelöscht.',
+  'folders.delete.confirm.cancel-button': 'Abbrechen',
+  'folders.delete.confirm.confirm-button': 'Löschen',
+  'folders.delete.success': 'Ordner "{{ name }}" gelöscht',
+
   'documents.tabs.info': 'Info',
   'documents.tabs.content': 'Inhalt',
   'documents.tabs.activity': 'Aktivität',

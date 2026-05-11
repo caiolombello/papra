@@ -333,6 +333,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'documents.list.search.total-count-with-query': '{{ count }} {{ count, =1:document, documenten }} komen overeen met deze zoekopdracht',
   'documents.list.search.total-count-no-query': '{{ count }} {{ count, =1:document, documenten }} in totaal',
 
+  'folders.delete.confirm.title': 'Map verwijderen',
+  'folders.delete.confirm.message': 'Weet u zeker dat u deze map wilt verwijderen? De documenten erin worden niet verwijderd.',
+  'folders.delete.confirm.cancel-button': 'Annuleren',
+  'folders.delete.confirm.confirm-button': 'Verwijderen',
+  'folders.delete.success': 'Map "{{ name }}" verwijderd',
+
   'documents.tabs.info': 'Info',
   'documents.tabs.content': 'Inhoud',
   'documents.tabs.activity': 'Activiteit',

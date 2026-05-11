@@ -333,6 +333,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'documents.list.search.total-count-with-query': '{{ count }} {{ count, =1:документ, [2-4]:документа, документов }} соответствует этому запросу',
   'documents.list.search.total-count-no-query': '{{ count }} {{ count, =1:документ, [2-4]:документа, документов }} всего',
 
+  'folders.delete.confirm.title': 'Удалить папку',
+  'folders.delete.confirm.message': 'Вы уверены, что хотите удалить эту папку? Документы внутри неё не будут удалены.',
+  'folders.delete.confirm.cancel-button': 'Отмена',
+  'folders.delete.confirm.confirm-button': 'Удалить',
+  'folders.delete.success': 'Папка "{{ name }}" удалена',
+
   'documents.tabs.info': 'Информация',
   'documents.tabs.content': 'Содержимое',
   'documents.tabs.activity': 'Активность',

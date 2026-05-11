@@ -333,6 +333,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'documents.list.search.total-count-with-query': '{{ count }} {{ count, =1:document, documente }} corespunzător acestei căutări',
   'documents.list.search.total-count-no-query': '{{ count }} {{ count, =1:document, documente }} în total',
 
+  'folders.delete.confirm.title': 'Șterge folderul',
+  'folders.delete.confirm.message': 'Ești sigur că vrei să ștergi acest folder? Documentele din interior nu vor fi șterse.',
+  'folders.delete.confirm.cancel-button': 'Anulează',
+  'folders.delete.confirm.confirm-button': 'Șterge',
+  'folders.delete.success': 'Folderul "{{ name }}" a fost șters',
+
   'documents.tabs.info': 'Info',
   'documents.tabs.content': 'Conținut',
   'documents.tabs.activity': 'Activitate',

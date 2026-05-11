@@ -333,6 +333,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'documents.list.search.total-count-with-query': '{{ count }} {{ count, =1:έγγραφο, έγγραφα }} που ταιριάζουν σε αυτό το ερώτημα',
   'documents.list.search.total-count-no-query': '{{ count }} {{ count, =1:έγγραφο, έγγραφα }} συνολικά',
 
+  'folders.delete.confirm.title': 'Διαγραφή φακέλου',
+  'folders.delete.confirm.message': 'Είστε βέβαιοι ότι θέλετε να διαγράψετε αυτόν τον φάκελο; Τα έγγραφα μέσα σε αυτόν δεν θα διαγραφούν.',
+  'folders.delete.confirm.cancel-button': 'Ακύρωση',
+  'folders.delete.confirm.confirm-button': 'Διαγραφή',
+  'folders.delete.success': 'Ο φάκελος "{{ name }}" διαγράφηκε',
+
   'documents.tabs.info': 'Πληροφορίες',
   'documents.tabs.content': 'Περιεχόμενο',
   'documents.tabs.activity': 'Δραστηριότητα',

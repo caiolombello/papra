@@ -359,6 +359,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'documents.list.search.total-count-with-query': '{{ count }} {{ count, =1:documento, documentos }} correspondente a esta busca',
   'documents.list.search.total-count-no-query': '{{ count }} {{ count, =1:documento, documentos }} no total',
 
+  'folders.delete.confirm.title': 'Excluir pasta',
+  'folders.delete.confirm.message': 'Tem certeza de que deseja excluir esta pasta? Os documentos dentro dela não serão excluídos.',
+  'folders.delete.confirm.cancel-button': 'Cancelar',
+  'folders.delete.confirm.confirm-button': 'Excluir',
+  'folders.delete.success': 'Pasta "{{ name }}" excluída',
+
   'documents.tabs.info': 'Informações',
   'documents.tabs.content': 'Conteúdo',
   'documents.tabs.activity': 'Atividades',

@@ -333,6 +333,12 @@ export const translations: Partial<TranslationsDictionary> = {
   'documents.list.search.total-count-with-query': '{{ count }} 个文档与此搜索匹配',
   'documents.list.search.total-count-no-query': '共 {{ count }} 个文档',
 
+  'folders.delete.confirm.title': '删除文件夹',
+  'folders.delete.confirm.message': '您确定要删除此文件夹吗？其中的文档不会被删除。',
+  'folders.delete.confirm.cancel-button': '取消',
+  'folders.delete.confirm.confirm-button': '删除',
+  'folders.delete.success': '文件夹 "{{ name }}" 已删除',
+
   'documents.tabs.info': '信息',
   'documents.tabs.content': '内容',
   'documents.tabs.activity': '活动',

@@ -357,6 +357,12 @@ export const translations = {
   'documents.list.search.total-count-with-query': '{{ count }} {{ count, =1:document, documents }} matching this query',
   'documents.list.search.total-count-no-query': '{{ count }} {{ count, =1:document, documents }} in total',
 
+  'folders.delete.confirm.title': 'Delete folder',
+  'folders.delete.confirm.message': 'Are you sure you want to delete this folder? The documents inside will not be deleted.',
+  'folders.delete.confirm.cancel-button': 'Cancel',
+  'folders.delete.confirm.confirm-button': 'Delete',
+  'folders.delete.success': 'Folder "{{ name }}" deleted',
+
   'documents.tabs.info': 'Info',
   'documents.tabs.content': 'Content',
   'documents.tabs.activity': 'Activity',
